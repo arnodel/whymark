@@ -55,6 +55,7 @@ func init() {
 		{name: "toc", keys: []Key{{Name: "T", Shortcut: true}}, run: (*App).ToggleTOC, closes: true},
 		{name: "tree", keys: []Key{{Name: "G", Shortcut: true}}, run: (*App).ToggleTree, closes: true},
 		{name: "open", keys: []Key{{Name: "Enter"}}, run: (*App).OpenSelected},
+		{name: "map", keys: []Key{{Name: "M"}}, run: func(*App) {}}, // the tree's (see treeKey)
 		{name: "journal", keys: []Key{{Name: "J", Shortcut: true}}, run: (*App).ToggleJournal, closes: true},
 		{name: "theme", keys: []Key{{Name: "L", Shortcut: true, Shift: true}}, run: func(a *App) { a.SetTheme(!a.darkTheme) }},
 		{name: "zoom-in", keys: []Key{zoomKey("=", true)}, run: (*App).ZoomIn},

@@ -288,7 +288,8 @@ func (a *App) Draw(dst canvas.Canvas, now time.Duration) {
 func (a *App) Animating() bool {
 	if t := a.tree; t != nil {
 		now := time.Now()
-		return len(t.loading) > 0 || t.closing != nil || t.camera.moving(now) || t.slide.moving(now)
+		return len(t.loading) > 0 || t.closing != nil || t.camera.moving(now) || t.slide.moving(now) ||
+			t.mapGrow.moving(now) || t.focusX.moving(now) || t.focusY.moving(now)
 	}
 	if a.overlaid == nil && !a.Panel.View().Document().Complete() {
 		return true

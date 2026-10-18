@@ -9,11 +9,64 @@ import (
 	"github.com/arnodel/whynot/canvas"
 )
 
-// The map of the tree of pages shows every page of the tree as a dot, in a
-// corner of the tree view, laid out by the shape of the tree alone, so
-// that it stays put as the selection moves: each page below its parent,
-// the oldest of siblings on the left, and a page centred over its
-// children.
+// The map of the tree of pages shows its pages as dots, laid out by the
+// shape of the tree alone, so that it stays put as the selection moves:
+// each page below its parent, the oldest of siblings on the left, and a
+// page centred over its children. In a corner of the tree view, it shows
+// the part of the tree around the selected page; expanded, it fills the
+// window, with the whole tree, and a box where the corner's part is.
+
+// A treeEase moves a number from one value to another, over a length of
+// time, easing out.
+type treeEase struct {
+	from, to float64
+	start    time.Time
+	length   time.Duration
+}
+
+// at returns e's value at now.
+func (e treeEase) at(now time.Time) float64 {
+	if !e.moving(now) {
+		return e.to
+	}
+	f := float64(now.Sub(e.start)) / float64(e.length)
+	f = 1 - (1-f)*(1-f)*(1-f)
+	return e.from + (e.to-e.from)*f
+}
+
+// moving reports whether e is still moving at now.
+func (e treeEase) moving(now time.Time) bool {
+	return e.length > 0 && now.Before(e.start.Add(e.length))
+}
+
+// ease returns e moving on, from where it is at now, to to, over length.
+func (e treeEase) ease(to float64, now time.Time, length time.Duration) treeEase {
+	return treeEase{from: e.at(now), to: to, start: now, length: length}
+}
+
+// focusMap makes the map's focus, which the corner's part is centred on,
+// the selected page: moving there over length.
+func (t *tree) focusMap(length time.Duration) {
+	now := time.Now()
+	t.focusX = t.focusX.ease(t.mapX[t.selected], now, length)
+	t.focusY = t.focusY.ease(float64(t.mapDepth[t.selected]), now, length)
+}
+
+// MapExpanded reports whether the map of the tree of pages is expanded.
+func (a *App) MapExpanded() bool { return a.tree != nil && a.tree.mapGrow.to == 1 }
+
+// expandMap expands the map of the tree of pages to fill the window, or
+// shrinks it back to its corner, growing or shrinking smoothly.
+func (a *App) expandMap(expand bool) {
+	t := a.tree
+	to := 0.0
+	if expand {
+		to = 1
+	}
+	if t.mapGrow.to != to {
+		t.mapGrow = t.mapGrow.ease(to, time.Now(), treeZoomTime)
+	}
+}
 
 // layoutMap places each page of t on the map: its x, counted in leaves
 // from the left, and its depth.
@@ -55,11 +108,16 @@ type treeMap struct {
 	// far apart its leaves and its rows are, and dot how big a dot is.
 	x0, y0, step, rowStep float64
 	dot                   int
+	// grown is how far it's expanded, from 0, in its corner, to 1, and
+	// box, in its own x and depth, the part the corner shows.
+	grown float64
+	box   struct{ x0, y0, x1, y1 float64 }
 }
 
 // treeMapGeometry returns where the map of the tree of pages is, if it's
-// shown: in the tree-map experiment, in a window big enough for it. A map
-// too big for its space shows the part around the selected page.
+// shown: in the tree-map experiment, in a window big enough for it. In its
+// corner, it shows the part around its focus, at a fixed scale; expanded,
+// the whole tree, or the part around the selected page, if it's too big.
 func (a *App) treeMapGeometry() (treeMap, bool) {
 	t := a.tree
 	b := a.bounds
@@ -68,10 +126,25 @@ func (a *App) treeMapGeometry() (treeMap, bool) {
 	if t == nil || !a.experiment("tree-map") || float64(w) < 120*s || float64(h) < 60*s {
 		return treeMap{}, false
 	}
+	now := time.Now()
 	margin, pad := int(12*s), int(10*s)
-	rect := image.Rect(b.Max.X-margin-w, b.Max.Y-margin-h, b.Max.X-margin, b.Max.Y-margin)
-	m := treeMap{tree: t, rect: rect}
-	m.area = rect.Inset(pad)
+	corner := image.Rect(b.Max.X-margin-w, b.Max.Y-margin-h, b.Max.X-margin, b.Max.Y-margin)
+	full := b.Inset(margin)
+	m := treeMap{tree: t, grown: t.mapGrow.at(now)}
+	lerp := func(x, y float64) float64 { return x + (y-x)*m.grown }
+	m.rect = image.Rect(
+		int(lerp(float64(corner.Min.X), float64(full.Min.X))), int(lerp(float64(corner.Min.Y), float64(full.Min.Y))),
+		int(lerp(float64(corner.Max.X), float64(full.Max.X))), int(lerp(float64(corner.Max.Y), float64(full.Max.Y))))
+	m.area = m.rect.Inset(pad)
+
+	// In the corner: a fixed scale, centred on the focus.
+	fx, fy := t.focusX.at(now), t.focusY.at(now)
+	small := corner.Inset(pad)
+	step, rowStep := 16*s, 22*s
+	x0 := float64(small.Min.X+small.Dx()/2) - fx*step
+	y0 := float64(small.Min.Y+small.Dy()/2) - fy*rowStep
+	halfW, halfH := float64(small.Dx())/2/step, float64(small.Dy())/2/rowStep
+	m.box.x0, m.box.y0, m.box.x1, m.box.y1 = fx-halfW, fy-halfH, fx+halfW, fy+halfH
 	// fit returns the step between n+1 places in size, at least least,
 	// and where the first is: centred, or if they don't fit, with sel's in
 	// the middle, as far as the ends allow.
@@ -86,11 +159,12 @@ func (a *App) treeMapGeometry() (treeMap, bool) {
 		}
 		return step, max(size-content, min(0, size/2-sel*step))
 	}
-	minStep := 6 * s
-	var sx, sy float64
-	m.step, sx = fit(t.mapLeaves-1, float64(m.area.Dx()), minStep, t.mapX[t.selected])
-	m.rowStep, sy = fit(t.mapRows, float64(m.area.Dy()), minStep, float64(t.mapDepth[t.selected]))
-	m.x0, m.y0 = float64(m.area.Min.X)+sx, float64(m.area.Min.Y)+sy
+	// Expanded: the whole tree, as far as it fits.
+	big := full.Inset(pad)
+	bigStep, sx := fit(t.mapLeaves-1, float64(big.Dx()), 6*s, fx)
+	bigRowStep, sy := fit(t.mapRows, float64(big.Dy()), 6*s, fy)
+	m.step, m.rowStep = lerp(step, bigStep), lerp(rowStep, bigRowStep)
+	m.x0, m.y0 = lerp(x0, float64(big.Min.X)+sx), lerp(y0, float64(big.Min.Y)+sy)
 	m.dot = int(max(3*s, min(7*s, min(m.step, m.rowStep)/2)))
 	return m, true
 }
@@ -141,7 +215,7 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 	thin := max(1, int(a.deviceScale))
 	r := m.rect
 	bg := color.NRGBAModel.Convert(theme.BackgroundColor).(color.NRGBA)
-	bg.A = 0xE6
+	bg.A = uint8(0xE6 + (0xFF-0xE6)*m.grown) // opaque, expanded
 	dst.DrawRect(r.Min.X, r.Min.Y, r.Dx(), r.Dy(), bg)
 	frame(dst, r, thin, theme.ThematicBreakColor)
 
@@ -199,14 +273,36 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 		d := m.dot / 2
 		fill(in, image.Rect(c.X-d, c.Y-d, c.X-d+m.dot, c.Y-d+m.dot), clr)
 	}
+	// Expanding, the box around the part the corner shows, which is the
+	// corner's own edge as it starts to grow.
+	if m.grown > 0 {
+		box := image.Rect(
+			int(m.x0+m.box.x0*m.step), int(m.y0+m.box.y0*m.rowStep),
+			int(m.x0+m.box.x1*m.step), int(m.y0+m.box.y1*m.rowStep)).Intersect(m.area)
+		frame(dst, box, thin, theme.TextColor)
+	}
+
 	if hovered == "" {
 		return
 	}
-	// The card: above the map, the size of a frame scaled to its width.
+	// The card: a frame's size scaled to a quarter of the window's width,
+	// above the map in its corner, or else beside the pointer.
+	b := a.bounds
 	gap := int(8 * a.deviceScale)
-	h := r.Dx() * a.bounds.Dy() / max(1, a.bounds.Dx())
-	card := image.Rect(r.Min.X, r.Min.Y-gap-h, r.Max.X, r.Min.Y-gap)
-	if card.Min.Y < a.bounds.Min.Y {
+	w := b.Dx() / 4
+	h := w * b.Dy() / max(1, b.Dx())
+	card := image.Rect(r.Max.X-w, r.Min.Y-gap-h, r.Max.X, r.Min.Y-gap)
+	if m.grown > 0 {
+		p := a.pointer.Add(image.Pt(2*gap, 2*gap))
+		if p.X+w > b.Max.X {
+			p.X = a.pointer.X - 2*gap - w
+		}
+		if p.Y+h > b.Max.Y {
+			p.Y = a.pointer.Y - 2*gap - h
+		}
+		card = image.Rect(p.X, p.Y, p.X+w, p.Y+h)
+	}
+	if !card.In(b) {
 		return // no room
 	}
 	fill(dst, card, theme.BackgroundColor)

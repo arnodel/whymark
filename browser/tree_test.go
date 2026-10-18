@@ -479,29 +479,67 @@ func TestTreeMap(t *testing.T) {
 	if !ok {
 		t.Fatal("the map isn't shown")
 	}
-	// The hall is centred over its children, the lamp's page on the left.
+	// In its corner, it's centred on the selected page; the hall is
+	// centred over its children, the lamp's page on the left.
 	h, l, s := m.at(hall), m.at(lamp), m.at(shout)
+	if c := m.area.Min.Add(m.area.Size().Div(2)); s.Sub(c).X*s.Sub(c).X+s.Sub(c).Y*s.Sub(c).Y > 4 {
+		t.Errorf("the selected page's dot is at %v, the corner's middle %v", s, c)
+	}
 	if l.Y != s.Y || h.Y >= l.Y || l.X >= s.X || h.X != (l.X+s.X)/2 {
 		t.Errorf("the map places the hall at %v, the lamp's page at %v and the shout's at %v", h, l, s)
 	}
-	// It stays put as the selection moves.
+	// Moving the selection pans it, keeping its shape.
 	press(app, "Left")
-	if m2, _ := app.treeMapGeometry(); m2.at(hall) != h {
-		t.Errorf("moving the selection moved the map's hall from %v to %v", h, m2.at(hall))
+	m, _ = app.treeMapGeometry()
+	if m.at(hall).Sub(m.at(shout)) != h.Sub(s) {
+		t.Errorf("moving the selection changed the map's shape")
 	}
-	// Pointing at a dot shows its page; clicking it selects it.
-	app.Frame([]input.Event{input.PointerMove{X: s.X, Y: s.Y}}, 0)
+
+	// A click on it expands it; a click on a dot then selects the page,
+	// and shrinks it back.
+	app.Frame([]input.Event{input.PointerButton{X: m.rect.Min.X + 2, Y: m.rect.Min.Y + 2, Button: input.ButtonPrimary, Down: true}}, 0)
+	if !app.MapExpanded() || app.tree.selected != lamp {
+		t.Fatalf("a click on the map didn't expand it, or selected %s", app.tree.selected)
+	}
+	m, _ = app.treeMapGeometry()
+	if m.grown != 1 || m.box.x1 <= m.box.x0 {
+		t.Errorf("the expanded map is %v grown, with a box %v", m.grown, m.box)
+	}
+	app.Frame([]input.Event{input.PointerMove{X: m.at(shout).X, Y: m.at(shout).Y}}, 0)
 	if got := app.mapHovered(); got != shout {
 		t.Errorf("pointing at the shout's dot points at %q", got)
 	}
+	h = m.at(hall)
 	app.Frame([]input.Event{input.PointerButton{X: h.X, Y: h.Y, Button: input.ButtonPrimary, Down: true}}, 0)
-	if app.tree.selected != hall {
-		t.Errorf("clicking the hall's dot selected %s", app.tree.selected)
+	if app.tree.selected != hall || app.MapExpanded() {
+		t.Errorf("clicking the hall's dot selected %s, the map expanded: %v", app.tree.selected, app.MapExpanded())
 	}
 	app.Back()
 	if app.tree.selected != lamp {
 		t.Errorf("Back after clicking a dot selected %s, want %s", app.tree.selected, lamp)
 	}
+
+	// M expands it; Escape, Enter or a click outside shrinks it back,
+	// leaving the tree.
+	for _, shrink := range []func(){
+		func() { press(app, "Escape") },
+		func() { press(app, "Enter") },
+		func() { press(app, "M") },
+		func() {
+			app.Frame([]input.Event{input.PointerButton{X: 1, Y: 1, Button: input.ButtonPrimary, Down: true}}, 0)
+		},
+	} {
+		press(app, "M")
+		if !app.MapExpanded() {
+			t.Fatal("M didn't expand the map")
+		}
+		shrink()
+		if app.MapExpanded() || !app.TreeShowing() || app.tree.selected != lamp {
+			t.Errorf("shrinking the map left it expanded (%v), the tree showing (%v), %s selected",
+				app.MapExpanded(), app.TreeShowing(), app.tree.selected)
+		}
+	}
+
 	press(app, "4") // the fourth experiment: the map
 	if _, ok := app.treeMapGeometry(); ok {
 		t.Error("the map is shown with it turned off")

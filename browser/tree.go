@@ -48,6 +48,10 @@ type tree struct {
 	mapX               map[string]float64
 	mapDepth           map[string]int
 	mapLeaves, mapRows int
+	// focusX and focusY are where the map's corner is centred, following
+	// the selected page, and mapGrow how far it's expanded (see
+	// expandMap).
+	focusX, focusY, mapGrow treeEase
 	// views are the pages' Views, by id, as they're shown in their
 	// frames: the page's own if this window has shown it, or else loaded
 	// (see loadThumb), with a stand-in until then.
@@ -209,6 +213,7 @@ func (a *App) listPages() {
 		t.children[""] = append(t.children[""], id)
 	}
 	t.layoutMap()
+	t.focusMap(0)
 }
 
 // HideTree closes the view of the tree of pages at once, leaving the
@@ -291,6 +296,7 @@ func (a *App) selectPage(id string) {
 	old := t.selected
 	t.selected = id
 	t.lastChild[t.pages[id].Parent] = id
+	t.focusMap(treeSlideTime)
 	var d image.Point
 	if after, ok := a.treeRect(old); ok {
 		d = after.Min.Sub(from[old].Min)
@@ -350,7 +356,15 @@ func (a *App) treeKey(k Key) bool {
 		// Zooming in on a page: the tree is done with.
 		return slices.Contains([]string{"Up", "Down", "Left", "Right", "Enter", "Escape"}, k.Name)
 	}
+	if a.MapExpanded() && (k.Name == "Enter" || k.Name == "Escape") {
+		a.expandMap(false)
+		return true
+	}
 	switch k.Name {
+	case "M":
+		if _, ok := a.treeMapGeometry(); ok {
+			a.expandMap(!a.MapExpanded())
+		}
 	case "Up":
 		if parent := t.pages[t.selected].Parent; parent != "" {
 			a.movePage(parent)
@@ -1021,10 +1035,20 @@ func (a *App) treeInput(events []input.Event) {
 		default:
 			continue
 		}
-		if m, ok := a.treeMapGeometry(); ok && at.In(m.rect) {
-			// The map is over the tiles: a click on it is its.
-			if id := m.dotAt(at); id != "" {
-				a.movePage(id)
+		if m, ok := a.treeMapGeometry(); ok && (a.MapExpanded() || at.In(m.rect)) {
+			// The map is over the tiles: a click on it is its. In its
+			// corner, it expands; expanded, a click on a dot selects the
+			// page, and a click on a dot or outside the map shrinks it back.
+			switch {
+			case !a.MapExpanded():
+				a.expandMap(true)
+			case at.In(m.rect):
+				if id := m.dotAt(at); id != "" {
+					a.movePage(id)
+					a.expandMap(false)
+				}
+			default:
+				a.expandMap(false)
 			}
 			return
 		}
