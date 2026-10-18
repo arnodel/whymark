@@ -143,13 +143,13 @@ func (a *App) treeMapGeometry() (treeMap, bool) {
 	step, rowStep := 16*s, 22*s
 	x0 := float64(small.Min.X+small.Dx()/2) - fx*step
 	y0 := float64(small.Min.Y+small.Dy()/2) - fy*rowStep
-	halfW, halfH := float64(small.Dx())/2/step, float64(small.Dy())/2/rowStep
+	halfW, halfH := float64(corner.Dx())/2/step, float64(corner.Dy())/2/rowStep
 	m.box.x0, m.box.y0, m.box.x1, m.box.y1 = fx-halfW, fy-halfH, fx+halfW, fy+halfH
 	// Expanded: the whole tree, as far as it fits, scaled from the corner's
 	// steps alike in both directions, so that the corner's part keeps its
 	// shape.
 	big := full.Inset(pad)
-	k := 2.5
+	k := 1.5 // expanding shows more, not just bigger
 	if n := t.mapLeaves - 1; n > 0 {
 		k = min(k, float64(big.Dx())/(step*float64(n)))
 	}
@@ -281,11 +281,12 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 		fill(in, image.Rect(c.X-d, c.Y-d, c.X-d+m.dot, c.Y-d+m.dot), clr)
 	}
 	// Expanding, the box around the part the corner shows, which is the
-	// corner's own edge as it starts to grow.
+	// corner's own edge as it starts to grow; it keeps the corner's shape,
+	// even where it goes past the map's edge.
 	if m.grown > 0 {
 		box := image.Rect(
 			int(m.x0+m.box.x0*m.step), int(m.y0+m.box.y0*m.rowStep),
-			int(m.x0+m.box.x1*m.step), int(m.y0+m.box.y1*m.rowStep)).Intersect(m.area)
+			int(m.x0+m.box.x1*m.step), int(m.y0+m.box.y1*m.rowStep))
 		frame(dst, box, thin, theme.TextColor)
 	}
 
