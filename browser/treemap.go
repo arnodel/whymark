@@ -1,12 +1,15 @@
 package browser
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"maps"
 	"math"
 	"slices"
 	"time"
+
+	"golang.org/x/image/font"
 
 	"github.com/arnodel/whynot/canvas"
 	"github.com/arnodel/whynot/input"
@@ -269,6 +272,7 @@ func (t *tree) layoutMap() {
 	ids := slices.SortedFunc(maps.Keys(t.pages), func(x, y string) int {
 		return t.pages[x].Time.Compare(t.pages[y].Time)
 	})
+	t.mapByAge = ids
 	t.mapHeat = map[string]float64{}
 	for i, id := range ids {
 		t.mapHeat[id] = 1
@@ -485,6 +489,9 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 		d := m.dot / 2
 		fill(in, image.Rect(c.X-d, c.Y-d, c.X-d+m.dot, c.Y-d+m.dot), clr)
 	}
+	if heat && m.grown == 1 {
+		a.drawHeatScale(dst, m, wall)
+	}
 	// Expanding, the box around the part the corner shows, which is the
 	// corner's own edge as it starts to grow; it keeps the corner's shape,
 	// even where it goes past the map's edge.
@@ -549,6 +556,77 @@ func heatColor(h float64, dark bool) color.Color {
 	f := 2 * h
 	mix := func(x, y uint8) uint8 { return uint8(float64(x) + (float64(y)-float64(x))*f) }
 	return color.RGBA{mix(from.R, to.R), mix(from.G, to.G), mix(from.B, to.B), 0xFF}
+}
+
+// drawHeatScale draws the expanded map's heat scale on dst, in its
+// bottom-left corner: the colors, with, below them, how old the pages are
+// at the ends, the middle and the quarters of their ranking.
+func (a *App) drawHeatScale(dst canvas.Canvas, m treeMap, now time.Time) {
+	t := a.tree
+	face, _, pad, ok := a.treeLabelFace()
+	if !ok || len(t.mapByAge) == 0 {
+		return
+	}
+	theme := a.treeTheme()
+	s := a.deviceScale
+	fm := face.Metrics()
+	text := (fm.Ascent + fm.Descent).Ceil()
+	w, barH := int(240*s), int(8*s)
+	panel := image.Rect(m.area.Min.X, m.area.Max.Y-2*pad-barH-pad-text, m.area.Min.X+w+2*pad, m.area.Max.Y)
+	if panel.Dx() > m.area.Dx() || panel.Min.Y < m.area.Min.Y {
+		return // no room
+	}
+	fill(dst, panel, theme.BackgroundColor)
+	frame(dst, panel, max(1, int(s)), theme.ThematicBreakColor)
+	bar := image.Rect(panel.Min.X+pad, panel.Min.Y+pad, panel.Max.X-pad, panel.Min.Y+pad+barH)
+	for x := bar.Min.X; x < bar.Max.X; x++ {
+		h := float64(x-bar.Min.X) / float64(max(1, bar.Dx()-1))
+		fill(dst, image.Rect(x, bar.Min.Y, x+1, bar.Max.Y), heatColor(h, a.darkTheme))
+	}
+	baseline := bar.Max.Y + pad + fm.Ascent.Ceil()
+	n := len(t.mapByAge)
+	last, lastX := "", bar.Min.X-1
+	for _, f := range []float64{0, 0.25, 0.5, 0.75, 1} {
+		label := shortAge(t.pages[t.mapByAge[int(f*float64(n-1)+0.5)]].Time, now)
+		if label == last {
+			continue
+		}
+		lw := font.MeasureString(face, label).Ceil()
+		x := bar.Min.X + int(f*float64(bar.Dx())) - lw/2
+		x = max(bar.Min.X, min(x, bar.Max.X-lw))
+		if x <= lastX {
+			continue // no room beside the last
+		}
+		dst.DrawText(label, face, x, baseline, theme.TextColor)
+		last, lastX = label, x+lw+pad
+	}
+}
+
+// shortAge returns how long before now t was, in a word or two: "now",
+// "5 min", "1 hour", "2 days", "3 weeks", "2 months", "1 year".
+func shortAge(t, now time.Time) string {
+	d := now.Sub(t)
+	unit := func(n int, one, many string) string {
+		if n == 1 {
+			return "1 " + one
+		}
+		return fmt.Sprintf("%d %s", n, many)
+	}
+	switch {
+	case d < time.Minute:
+		return "now"
+	case d < time.Hour:
+		return fmt.Sprintf("%d min", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return unit(int(d.Hours()), "hour", "hours")
+	case d < 7*24*time.Hour:
+		return unit(int(d.Hours()/24), "day", "days")
+	case d < 60*24*time.Hour:
+		return unit(int(d.Hours()/24/7), "week", "weeks")
+	case d < 365*24*time.Hour:
+		return unit(int(d.Hours()/24/30), "month", "months")
+	}
+	return unit(int(d.Hours()/24/365), "year", "years")
 }
 
 // drawMapIcon draws the map's icon in r on dst, in a box.

@@ -749,3 +749,24 @@ func TestTreeMapHeat(t *testing.T) {
 		}
 	}
 }
+
+func TestShortAge(t *testing.T) {
+	now := time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)
+	for _, c := range []struct {
+		ago  time.Duration
+		want string
+	}{
+		{10 * time.Second, "now"},
+		{5 * time.Minute, "5 min"},
+		{time.Hour, "1 hour"},
+		{5 * time.Hour, "5 hours"},
+		{2 * 24 * time.Hour, "2 days"},
+		{21 * 24 * time.Hour, "3 weeks"},
+		{90 * 24 * time.Hour, "3 months"},
+		{400 * 24 * time.Hour, "1 year"},
+	} {
+		if got := shortAge(now.Add(-c.ago), now); got != c.want {
+			t.Errorf("shortAge(%v ago) = %q, want %q", c.ago, got, c.want)
+		}
+	}
+}

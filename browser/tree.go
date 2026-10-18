@@ -48,6 +48,7 @@ type tree struct {
 	mapX               map[string]float64
 	mapDepth           map[string]int
 	mapHeat            map[string]float64 // see layoutMap
+	mapByAge           []string           // the pages, oldest first
 	mapLeaves, mapRows int
 	// focusX and focusY are where the map's corner is centred, following
 	// the selected page, and mapGrow how far it's expanded (see
