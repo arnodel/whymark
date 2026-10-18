@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/arnodel/whymark/engine/compile"
 	"github.com/arnodel/whynot"
 )
 
@@ -70,7 +69,7 @@ func readHead(br *bufio.Reader) []byte {
 // isWhymark reports whether head, the start of a document (see readHead),
 // is a whymark document's.
 func isWhymark(head []byte) bool {
-	return compile.IsDocument(head)
+	return whymark.IsDocument(head)
 }
 
 // takeTurn takes a turn of a whymark document, and returns its page as a

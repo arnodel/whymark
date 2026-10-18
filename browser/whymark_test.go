@@ -8,8 +8,6 @@ import (
 	"testing"
 
 	"github.com/arnodel/whynot"
-	"github.com/arnodel/whynot/fonts"
-	"github.com/arnodel/whynot/styles/simpletheme"
 )
 
 // cellarDoc is a tiny whymark adventure, with the journal hint if
@@ -120,7 +118,7 @@ func TestWhymarkJournalAtLaunch(t *testing.T) {
 	for _, hint := range []bool{true, false} {
 		dir := t.TempDir()
 		location := writeTempMD(t, dir, "cellar.md", cellarDoc(hint))
-		app := NewApp(fonts.NewGoSelector(), simpletheme.DarkStyleSheet, true, NewRegistry(nil))
+		app := newApp()
 		app.syncTurns = true
 		doc, err := app.Load(location)
 		if err != nil {

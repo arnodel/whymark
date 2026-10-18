@@ -2,16 +2,15 @@ package main
 
 import (
 	"flag"
+	"github.com/arnodel/whymark/internal/viewer"
 	"image"
 	"log"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 
 	"github.com/arnodel/whymark/browser"
-	"github.com/arnodel/whymark/engine/ai/anthropic"
 	"github.com/arnodel/whynot"
 	"github.com/arnodel/whynot/backends/ebitenbackend"
 	"github.com/arnodel/whynot/fonts"
@@ -63,16 +62,10 @@ func main() {
 
 	scale := ebiten.Monitor().DeviceScaleFactor()
 	faceSelector := browser.NewDocumentFaceSelector()
-	app := browser.NewApp(faceSelector, styleSheet, !*light, registry)
-	if key, from, err := browser.AnthropicAPIKey(); err != nil {
-		log.Printf("the AI's key: %v", err)
-	} else if key != "" {
-		log.Printf("the AI's key is from %s", from)
-		app.EnableAI(anthropic.New(key), anthropic.Models, *remoteAI)
-	}
-	if dir, err := os.UserConfigDir(); err == nil {
-		if err := app.EnablePersistence(filepath.Join(dir, "whymark")); err != nil {
-			log.Printf("keeping whymark pages: %v", err)
+	app := browser.NewApp(faceSelector, styleSheet, !*light, registry, viewer.NewEngine(registry, *remoteAI))
+	if dir, err := viewer.DataDir(); err == nil {
+		if err := app.RememberLatest(dir); err != nil {
+			log.Printf("remembering the latest pages: %v", err)
 		}
 	}
 	doc, err := app.Load(location)

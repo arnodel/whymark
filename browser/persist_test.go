@@ -23,8 +23,8 @@ func TestResume(t *testing.T) {
 	writeTempMD(t, dir, "resumed.md", strings.Replace(counter("  resume: true\n"), "counter.md", "resumed.md", 1))
 	writeTempMD(t, dir, "plain.md", strings.Replace(counter(""), "counter.md", "plain.md", 1))
 	session := func() *App {
-		app := newTestApp(t, dir, start, "# Start\n\n[Resumed](resumed.md) · [Plain](plain.md)\n")
-		if err := app.EnablePersistence(data); err != nil {
+		app := newTestApp(t, dir, start, "# Start\n\n[Resumed](resumed.md) · [Plain](plain.md)\n", withStore(t, data))
+		if err := app.RememberLatest(data); err != nil {
 			t.Fatal(err)
 		}
 		return app
@@ -70,8 +70,8 @@ func TestPageURL(t *testing.T) {
 	writeTempMD(t, dir, "count.md", "---\nwhymark:\n  version: 1\n  resume: true\n---\n```lua\nfunction init(turn) return {n = 0} end\n```\n"+
 		"# Count\n\n`turn.state.n = turn.state.n + 1`\ncount `= turn.state.n`\n")
 	session := func() *App {
-		app := newTestApp(t, dir, start, "# Start\n\n[Count](count.md)\n")
-		if err := app.EnablePersistence(data); err != nil {
+		app := newTestApp(t, dir, start, "# Start\n\n[Count](count.md)\n", withStore(t, data))
+		if err := app.RememberLatest(data); err != nil {
 			t.Fatal(err)
 		}
 		return app
@@ -128,8 +128,8 @@ func TestPageTrail(t *testing.T) {
 	writeTempMD(t, dir, "count.md", "---\nwhymark:\n  version: 1\n---\n```lua\nfunction init(turn) return {n = 0} end\n```\n"+
 		"# Count\n\n`turn.state.n = turn.state.n + 1`\ncount `= turn.state.n`\n")
 	session := func() *App {
-		app := newTestApp(t, dir, start, "# Start\n\n[Count](count.md)\n")
-		if err := app.EnablePersistence(data); err != nil {
+		app := newTestApp(t, dir, start, "# Start\n\n[Count](count.md)\n", withStore(t, data))
+		if err := app.RememberLatest(data); err != nil {
 			t.Fatal(err)
 		}
 		return app
@@ -176,8 +176,8 @@ func TestVisits(t *testing.T) {
 	dir, data := t.TempDir(), t.TempDir()
 	start := writeTempMD(t, dir, "start.md", "# Start\n\n[Count](count.md)\n")
 	writeTempMD(t, dir, "count.md", "---\nwhymark:\n  version: 1\n---\n# Count\n\n[Again](?)\n")
-	app := newTestApp(t, dir, start, "# Start\n\n[Count](count.md)\n")
-	if err := app.EnablePersistence(data); err != nil {
+	app := newTestApp(t, dir, start, "# Start\n\n[Count](count.md)\n", withStore(t, data))
+	if err := app.RememberLatest(data); err != nil {
 		t.Fatal(err)
 	}
 	app.Follow("count.md")

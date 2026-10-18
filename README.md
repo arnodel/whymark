@@ -34,7 +34,9 @@ See [the viewer's README](cmd/whymark) for what it can do, and the keys.
   them, turning a request (a document, a passage, input) into a page, and keeps pages.
 - [`browser`](browser) is the browser: everything the viewers share, from
   navigation and history to the journal, selection and the prompt.
-- [`cmd`](cmd) has the viewers, which wire the two together.
+- [`cmd`](cmd) has the viewers, which wire the two together: each builds an engine, with its
+  store of pages and its AI, and hands it to a browser (see
+  [`internal/viewer`](internal/viewer)). The browser only knows the protocol.
 
 Separating them more clearly, with a protocol between the engine and the browser, is planned
 in [#1](https://github.com/arnodel/whymark/issues/1). See

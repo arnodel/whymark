@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/arnodel/whymark/engine"
 	"image"
 	"os"
 	"path/filepath"
@@ -36,7 +37,8 @@ func TestKeysWhileTyping(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	app := browser.NewApp(fonts.NewGoSelector(), simpletheme.DarkStyleSheet, true, browser.NewRegistry(nil))
+	registry := browser.NewRegistry(nil)
+	app := browser.NewApp(fonts.NewGoSelector(), simpletheme.DarkStyleSheet, true, registry, engine.NewEngine(registry))
 	doc, err := app.Load(location)
 	if err != nil {
 		t.Fatal(err)

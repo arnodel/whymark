@@ -13,20 +13,18 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/arnodel/whymark/engine"
 	"github.com/arnodel/whynot"
 )
 
-// A whymark document's state lives in its pages. With persistence on, the
-// engine keeps them on disk as well as in memory, so that a page made in an
-// earlier session can be carried on from; and the browser remembers the
-// latest page of each document that asks to be resumed (its header's
-// resume hint), and carries on from it when the document is opened again.
+// A whymark document's state lives in its pages, which its engine keeps.
+// The browser remembers the latest page of each document that asks to be
+// resumed (its header's resume hint), and carries on from it when the
+// document is opened again.
 
-// EnablePersistence keeps whymark documents' pages in dir, and the latest
-// page of each document asking to be resumed. Call it before the first
-// document is opened.
-func (a *App) EnablePersistence(dir string) error {
+// RememberLatest keeps the latest page of each document asking to be
+// resumed in dir, across sessions. Call it before the first document is
+// opened.
+func (a *App) RememberLatest(dir string) error {
 	a.latestFile = filepath.Join(dir, "latest.json")
 	a.latest = map[string]string{}
 	data, err := os.ReadFile(a.latestFile)
@@ -39,18 +37,7 @@ func (a *App) EnablePersistence(dir string) error {
 			return err
 		}
 	}
-	store, err := openPageStore(dir)
-	if err != nil {
-		return err
-	}
-	a.engineWith(engine.WithStore(store))
 	return nil
-}
-
-// engineWith makes the engine anew with options, on top of those it had.
-func (a *App) engineWith(options ...engine.Option) {
-	a.engineOptions = append(a.engineOptions, options...)
-	a.engine = engine.NewEngine(a.registry, a.engineOptions...)
 }
 
 // documentKey returns the URL a document is remembered by: location,
@@ -96,7 +83,7 @@ func sameDocument(x, y *url.URL) bool {
 // A whymark page has a URL of its own, its page URL: its location, with
 // its page-id after its passage, separated by "@", as in
 // "todo.md#to-do@k3j9x2m4qp7r5t8w". Opening it carries on from that page,
-// in any whymark on the machine keeping it (see EnablePersistence). The
+// in any whymark whose engine keeps it. The
 // fragment is the user agent's business, never sent to the engine, and a
 // passage's id, a heading's anchor, never has an "@".
 

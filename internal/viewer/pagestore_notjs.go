@@ -1,6 +1,6 @@
 //go:build !js
 
-package browser
+package viewer
 
 import (
 	"path/filepath"
