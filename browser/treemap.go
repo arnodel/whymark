@@ -585,20 +585,37 @@ func (a *App) drawHeatScale(dst canvas.Canvas, m treeMap, now time.Time) {
 	}
 	baseline := bar.Max.Y + pad + fm.Ascent.Ceil()
 	n := len(t.mapByAge)
-	last, lastX := "", bar.Min.X-1
-	for _, f := range []float64{0, 0.25, 0.5, 0.75, 1} {
-		label := shortAge(t.pages[t.mapByAge[int(f*float64(n-1)+0.5)]].Time, now)
-		if label == last {
+	ageAt := func(f float64) string { return shortAge(t.pages[t.mapByAge[int(f*float64(n-1)+0.5)]].Time, now) }
+	tick := func(x int) {
+		fill(dst, image.Rect(x, bar.Max.Y, x+max(1, int(s)), bar.Max.Y+pad/2), theme.ThematicBreakColor)
+	}
+	// The ends' labels, flush with them, and between them those of the
+	// middle and the quarters, centred on their points, if they say
+	// something else and there's room.
+	first, last := ageAt(0), ageAt(1)
+	dst.DrawText(first, face, bar.Min.X, baseline, theme.TextColor)
+	tick(bar.Min.X)
+	left := bar.Min.X + font.MeasureString(face, first).Ceil() + pad
+	right := bar.Max.X
+	if last != first {
+		right -= font.MeasureString(face, last).Ceil()
+		dst.DrawText(last, face, right, baseline, theme.TextColor)
+		tick(bar.Max.X - max(1, int(s)))
+		right -= pad
+	}
+	shown := first
+	for _, f := range []float64{0.25, 0.5, 0.75} {
+		label := ageAt(f)
+		if label == shown || label == last {
 			continue
 		}
 		lw := font.MeasureString(face, label).Ceil()
-		x := bar.Min.X + int(f*float64(bar.Dx())) - lw/2
-		x = max(bar.Min.X, min(x, bar.Max.X-lw))
-		if x <= lastX {
-			continue // no room beside the last
+		at := bar.Min.X + int(f*float64(bar.Dx()))
+		if x := at - lw/2; x >= left && x+lw <= right {
+			dst.DrawText(label, face, x, baseline, theme.TextColor)
+			tick(at)
+			left, shown = x+lw+pad, label
 		}
-		dst.DrawText(label, face, x, baseline, theme.TextColor)
-		last, lastX = label, x+lw+pad
 	}
 }
 
