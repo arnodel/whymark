@@ -421,9 +421,10 @@ func treeRow(ids []string, k int, r image.Rectangle, gap int) []treeFrame {
 	return frames
 }
 
-// treeLayout returns the frames of the tree view: the selected page's
-// parent, the row of the selected page and its siblings, and the row of
-// its children, with the child Down selects below it.
+// treeLayout returns the frames of the tree view: the row of the selected
+// page's parent and its siblings, the row of the selected page and its
+// siblings, and the row of its children, with the child Down selects
+// below it.
 func (a *App) treeLayout() (parent []treeFrame, rows [][]treeFrame) {
 	t := a.tree
 	b := a.bounds
@@ -433,7 +434,13 @@ func (a *App) treeLayout() (parent []treeFrame, rows [][]treeFrame) {
 	sel := image.Rect(center.X-w/2, center.Y-h/2, center.X-w/2+w, center.Y-h/2+h)
 	p := t.pages[t.selected].Parent
 	if p != "" {
-		parent = []treeFrame{{p, sel.Sub(image.Pt(0, h+gap))}}
+		r := sel.Sub(image.Pt(0, h+gap))
+		aunts := t.children[t.pages[p].Parent]
+		if k := slices.Index(aunts, p); k >= 0 {
+			parent = treeRow(aunts, k, r, gap)
+		} else {
+			parent = []treeFrame{{p, r}} // not kept by the engine
+		}
 	}
 	siblings := t.children[p]
 	rows = append(rows, treeRow(siblings, slices.Index(siblings, t.selected), sel, gap))
@@ -542,9 +549,13 @@ func (a *App) shownPath() map[string]bool {
 	}
 	t := a.tree
 	path := t.path()
-	parent := t.pages[t.selected].Parent
-	if slices.ContainsFunc(t.children[parent], func(id string) bool { return id != t.selected && path[id] }) {
-		delete(path, parent)
+	// The same goes for the parent's row, through the grandparent, which
+	// isn't shown.
+	for _, id := range []string{t.selected, t.pages[t.selected].Parent} {
+		parent := t.pages[id].Parent
+		if id != "" && slices.ContainsFunc(t.children[parent], func(s string) bool { return s != id && path[s] }) {
+			delete(path, parent)
+		}
 	}
 	return path
 }
@@ -585,7 +596,8 @@ func (a *App) treeLines(frames []treeFrame) (lines, path []image.Rectangle) {
 		})
 	}
 	// Along a row, the path goes from the page lined up under the line
-	// above, the selected page or the child under it, to the page on it.
+	// above, the parent, the selected page or the child under it, to the
+	// page on it.
 	along := func(row []string, from string) (k, target int) {
 		k = slices.Index(row, from)
 		return k, slices.IndexFunc(row, func(id string) bool { return id != from && on[id] })
@@ -593,7 +605,12 @@ func (a *App) treeLines(frames []treeFrame) (lines, path []image.Rectangle) {
 	sel := at[t.selected]
 	parent := t.pages[t.selected].Parent
 	siblings, children := t.children[parent], t.children[t.selected]
+	var aunts []string
+	if parent != "" {
+		aunts = t.children[t.pages[parent].Parent]
+	}
 	child := t.preferredChild(t.selected)
+	ak, atarget := along(aunts, parent)
 	k, target := along(siblings, t.selected)
 	ck, ctarget := along(children, child)
 	if parent != "" {
@@ -605,7 +622,7 @@ func (a *App) treeLines(frames []treeFrame) (lines, path []image.Rectangle) {
 	for _, row := range []struct {
 		ids       []string
 		k, target int
-	}{{siblings, k, target}, {children, ck, ctarget}} {
+	}{{aunts, ak, atarget}, {siblings, k, target}, {children, ck, ctarget}} {
 		siblings, k, target := row.ids, row.k, row.target
 		for i := 1; i < len(siblings); i++ {
 			l, r := at[siblings[i-1]], at[siblings[i]]

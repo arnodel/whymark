@@ -401,3 +401,40 @@ func TestTreeKeepsLastChild(t *testing.T) {
 		t.Errorf("Down selected %s, want %s", app.tree.selected, lamp)
 	}
 }
+
+// TestTreeParentRow checks that the parent's siblings are shown beside it,
+// so that going up slides them straight down rather than showing them.
+func TestTreeParentRow(t *testing.T) {
+	app, _, lamp, _ := treeApp(t)
+	app.FollowAnchor("cellar") // a child of the shout's page
+	app.ShowTree()
+	before, ok := app.treeRect(lamp)
+	if !ok {
+		t.Fatal("the parent's sibling isn't shown")
+	}
+	press(app, "Up")
+	after, _ := app.treeRect(lamp)
+	if after.Min.X != before.Min.X || after.Min.Y <= before.Min.Y {
+		t.Errorf("going up moved the parent's sibling from %v to %v, want straight down", before, after)
+	}
+}
+
+// TestTreePathAlongParentRow checks the path from a page to a cousin: up
+// to the parent, and along its row, not up to the grandparent.
+func TestTreePathAlongParentRow(t *testing.T) {
+	info := func(id, parent string) whymark.PageInfo { return whymark.PageInfo{ID: id, Parent: parent} }
+	app := &App{tree: &tree{
+		pages: map[string]whymark.PageInfo{
+			"g": info("g", ""), "p": info("p", "g"), "q": info("q", "g"),
+			"s": info("s", "p"), "r": info("r", "q"),
+		},
+		children:  map[string][]string{"": {"g"}, "g": {"p", "q"}, "p": {"s"}, "q": {"r"}},
+		selected:  "s",
+		start:     "r",
+		lastChild: map[string]string{},
+	}}
+	on := app.shownPath()
+	if len(on) != 4 || !on["s"] || !on["p"] || !on["q"] || !on["r"] || on["g"] {
+		t.Errorf("the path shown from s to its cousin r is %v, want s, p, q and r", on)
+	}
+}
