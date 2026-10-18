@@ -1,4 +1,4 @@
-package browser
+package viewer
 
 import (
 	"bytes"

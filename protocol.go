@@ -112,3 +112,38 @@ func Follow(h Header, link string) (Request, bool) {
 	location.Fragment, location.RawFragment = ref.Fragment, ref.RawFragment
 	return Request{Location: &location, FromPageID: h.PageID}, true
 }
+
+// IsDocument reports whether source, or its start, is a whymark document's:
+// Markdown whose front matter has a whymark key. Whether its settings are
+// right is for the engine to say, on its pages.
+func IsDocument(source []byte) bool {
+	front, ok := frontMatter(source)
+	if !ok {
+		return false
+	}
+	var fm struct {
+		Whymark *yaml.Node `yaml:"whymark"`
+	}
+	return yaml.Unmarshal(front, &fm) == nil && fm.Whymark != nil && fm.Whymark.Tag != "!!null"
+}
+
+// frontMatter returns the front matter of source, between its --- lines.
+func frontMatter(source []byte) ([]byte, bool) {
+	rest, found := bytes.CutPrefix(source, []byte("---\n"))
+	if !found {
+		if rest, found = bytes.CutPrefix(source, []byte("---\r\n")); !found {
+			return nil, false
+		}
+	}
+	var front []byte
+	for len(rest) > 0 {
+		line, after, _ := bytes.Cut(rest, []byte("\n"))
+		if d := bytes.TrimRight(line, "\r"); string(d) == "---" || string(d) == "..." {
+			return front, true
+		}
+		front = append(front, line...)
+		front = append(front, '\n')
+		rest = after
+	}
+	return nil, false
+}

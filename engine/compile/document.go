@@ -3,6 +3,7 @@ package compile
 import (
 	"bytes"
 	"fmt"
+	"github.com/arnodel/whymark"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -113,8 +114,6 @@ func ReadSettings(source []byte) (Settings, error) {
 
 var errNotDocument = fmt.Errorf("not a whymark document: its front matter has no whymark key")
 
-// IsDocument reports whether source is a whymark document.
-func IsDocument(source []byte) bool {
-	_, err := ReadSettings(source)
-	return err == nil
-}
+// IsDocument reports whether source is a whymark document (see
+// [whymark.IsDocument]).
+func IsDocument(source []byte) bool { return whymark.IsDocument(source) }

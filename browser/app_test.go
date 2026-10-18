@@ -3,6 +3,7 @@
 package browser
 
 import (
+	"github.com/arnodel/whymark/engine"
 	"image"
 	"net/url"
 	"os"
@@ -47,13 +48,32 @@ func writeTempMD(t *testing.T, dir, name, content string) *url.URL {
 	return u
 }
 
+// newApp returns an App whose engine has options, fetching through a
+// registry of its own, as a viewer's does.
+func newApp(options ...engine.Option) *App {
+	registry := NewRegistry(nil)
+	return NewApp(fonts.NewGoSelector(), simpletheme.DarkStyleSheet, true, registry, engine.NewEngine(registry, options...))
+}
+
+// withStore is an option keeping the engine's pages in a database in dir,
+// as a viewer does: another App with it in the same dir carries on.
+func withStore(t *testing.T, dir string) engine.Option {
+	t.Helper()
+	store, err := engine.OpenSQLiteStore(filepath.Join(dir, "whymark.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	return engine.WithStore(store)
+}
+
 // newTestApp constructs an App with a Panel already showing source,
 // laid out and current (as if Open had just been called at startup) -
 // deviceScale 1, no toolbar, so width/height match testWidth/testHeight
 // exactly.
-func newTestApp(t *testing.T, dir string, location *url.URL, source string) *App {
+func newTestApp(t *testing.T, dir string, location *url.URL, source string, options ...engine.Option) *App {
 	t.Helper()
-	app := NewApp(fonts.NewGoSelector(), simpletheme.DarkStyleSheet, true, NewRegistry(nil))
+	app := newApp(options...)
 	app.syncTurns = true
 	view := app.NewView(app.parser.Parse([]byte(source), whynot.WithBaseURL(location)))
 	app.Panel = whynot.NewPanel(view, image.Rectangle{})
@@ -456,7 +476,7 @@ func TestAppOpenFiresOnTitleChange(t *testing.T) {
 	dir := t.TempDir()
 	loc := writeTempMD(t, dir, "a.md", "# My Title")
 
-	app := NewApp(fonts.NewGoSelector(), simpletheme.DarkStyleSheet, true, NewRegistry(nil))
+	app := newApp()
 	app.syncTurns = true
 	view := app.NewView(app.parser.Parse([]byte("# My Title"), whynot.WithBaseURL(loc)))
 	app.Panel = whynot.NewPanel(view, image.Rectangle{})
@@ -631,7 +651,7 @@ func TestAppOpenFallsBackToUntitled(t *testing.T) {
 	dir := t.TempDir()
 	loc := writeTempMD(t, dir, "a.md", "no heading here")
 
-	app := NewApp(fonts.NewGoSelector(), simpletheme.DarkStyleSheet, true, NewRegistry(nil))
+	app := newApp()
 	app.syncTurns = true
 	view := app.NewView(app.parser.Parse([]byte("no heading here"), whynot.WithBaseURL(loc)))
 	app.Panel = whynot.NewPanel(view, image.Rectangle{})

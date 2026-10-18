@@ -12,5 +12,5 @@
 // a page was shown.
 //
 // Package engine runs documents, in the same program as a browser or
-// elsewhere.
+// elsewhere; a browser needs only this package.
 package whymark

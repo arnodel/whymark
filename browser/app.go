@@ -21,7 +21,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/arnodel/whymark/engine"
 	"github.com/arnodel/whynot"
 	"github.com/arnodel/whynot/codeblocks/chromahighlight"
 	"github.com/arnodel/whynot/codeblocks/kroki"
@@ -111,10 +110,8 @@ type App struct {
 	parser *whynot.Parser
 	// engine takes the turns of whymark documents, and pages keeps, for
 	// each page of one, its header and the request it answered.
-	engine *engine.Engine
-	// engineOptions are what engine was made with (see engineWith).
-	engineOptions []engine.Option
-	pages         map[*whynot.Document]*whymarkPage
+	engine whymark.Engine
+	pages  map[*whynot.Document]*whymarkPage
 	// latest is the latest page of each whymark document that asks to be
 	// resumed, by its URL, kept in latestFile if set (see persist.go).
 	latest     map[string]string
@@ -189,8 +186,8 @@ type App struct {
 // call NewView to build the first document's View, construct the real
 // Panel from it, assign it to Panel, then call Open to make it current.
 // Documents and their images are fetched through registry (see
-// NewRegistry).
-func NewApp(faceSelector fonts.FaceSelector, styleSheet whynot.StyleSheet, dark bool, registry *fetch.Registry) *App {
+// NewRegistry), and whymark documents' pages come from engine.
+func NewApp(faceSelector fonts.FaceSelector, styleSheet whynot.StyleSheet, dark bool, registry *fetch.Registry, engine whymark.Engine) *App {
 	return &App{
 		faceSelector: faceSelector,
 		styleSheet:   styleSheet,
@@ -202,7 +199,7 @@ func NewApp(faceSelector fonts.FaceSelector, styleSheet whynot.StyleSheet, dark 
 			whynot.WithCodeBlockPlugin(kroki.Plugin{}),
 			whynot.WithCodeBlockPlugin(chromahighlight.Plugin{}),
 		),
-		engine:    engine.NewEngine(registry),
+		engine:    engine,
 		darkTheme: dark,
 		zoom:      1,
 		touch:     runtime.GOOS == "android" || runtime.GOOS == "ios",

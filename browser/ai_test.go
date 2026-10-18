@@ -4,9 +4,11 @@ package browser
 
 import (
 	"context"
+	"github.com/arnodel/whymark/engine"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -24,9 +26,21 @@ func (c cannedAI) Ask(ctx context.Context, req ai.Request, w io.Writer) (string,
 	return string(c), nil
 }
 
-// TestEnableAI checks that local whymark documents get the AI, and remote
-// ones only when allowed.
-func TestEnableAI(t *testing.T) {
+// withAI is an option giving the engine provider as its AI, for the
+// documents granted reports.
+func withAI(provider ai.Provider, granted func(document *url.URL) bool) engine.Option {
+	return func(e *engine.Engine) {
+		engine.WithCapabilities(&ai.AI{Provider: provider, Models: map[string]string{"balanced": "test-model"}, Default: "balanced"})(e)
+		engine.WithGrant(func(document *url.URL, name string) bool { return granted(document) })(e)
+	}
+}
+
+// localOnly grants local documents, as the viewers do by default.
+func localOnly(document *url.URL) bool { return document.Scheme == "file" }
+
+// TestAIPages checks that a page asking the AI shows its answer when the
+// engine grants the document the AI, and its without block otherwise.
+func TestAIPages(t *testing.T) {
 	const doc = "---\nwhymark:\n  version: 1\n  uses:\n    ai: optional\n---\n# Shop\n\n" +
 		"```ai\nDescribe the shop.\n```\n```without ai\nThe shop is quiet.\n```\n"
 	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -46,8 +60,11 @@ func TestEnableAI(t *testing.T) {
 		dir := t.TempDir()
 		start := writeTempMD(t, dir, "start.md", "# Start\n")
 		writeTempMD(t, dir, "shop.md", doc)
-		app := newTestApp(t, dir, start, "# Start\n")
-		app.EnableAI(cannedAI("Clocks tick everywhere."), map[string]string{"balanced": "test-model"}, c.remoteAllowed)
+		granted := localOnly
+		if c.remoteAllowed {
+			granted = func(*url.URL) bool { return true }
+		}
+		app := newTestApp(t, dir, start, "# Start\n", withAI(cannedAI("Clocks tick everywhere."), granted))
 		app.Follow(c.link)
 		if text := pageText(app); !strings.Contains(text, c.want) {
 			t.Errorf("%s: the page shows %q, want %q", c.name, text, c.want)
@@ -75,10 +92,9 @@ func TestTurnInBackground(t *testing.T) {
 	dir := t.TempDir()
 	start := writeTempMD(t, dir, "start.md", "# Start\n")
 	writeTempMD(t, dir, "shop.md", doc)
-	app := newTestApp(t, dir, start, "# Start\n")
-	app.syncTurns = false
 	release := make(chan struct{})
-	app.EnableAI(heldAI{"Clocks tick everywhere.", release}, map[string]string{"balanced": "test-model"}, false)
+	app := newTestApp(t, dir, start, "# Start\n", withAI(heldAI{"Clocks tick everywhere.", release}, localOnly))
+	app.syncTurns = false
 
 	followed := time.Now()
 	app.Follow("shop.md")
