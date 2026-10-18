@@ -3,12 +3,14 @@
 package browser
 
 import (
+	"fmt"
 	"image"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/arnodel/whymark"
+	"github.com/arnodel/whynot"
 	"github.com/arnodel/whynot/canvas"
 	"github.com/arnodel/whynot/input"
 )
@@ -516,7 +518,10 @@ func TestTreeMap(t *testing.T) {
 		t.Errorf("pointing at the shout's dot points at %q", got)
 	}
 	h = m.at(hall)
-	app.Frame([]input.Event{input.PointerButton{X: h.X, Y: h.Y, Button: input.ButtonPrimary, Down: true}}, 0)
+	app.Frame([]input.Event{
+		input.PointerButton{X: h.X, Y: h.Y, Button: input.ButtonPrimary, Down: true},
+		input.PointerButton{X: h.X, Y: h.Y, Button: input.ButtonPrimary},
+	}, 0)
 	if app.tree.selected != hall || app.MapExpanded() {
 		t.Errorf("clicking the hall's dot selected %s, the map expanded: %v", app.tree.selected, app.MapExpanded())
 	}
@@ -626,5 +631,91 @@ func TestTreeKeepsKeys(t *testing.T) {
 	app.HideTree()
 	if _, ok := app.Input(); !ok {
 		t.Error("the input field isn't offered again once the tree is closed")
+	}
+}
+
+// wideTree returns an App showing the tree view of a page with n children,
+// the middle one selected, too wide for the expanded map at a readable
+// scale.
+func wideTree(t *testing.T, n int) *App {
+	instantTree(t)
+	app := newApp() // an engine, which knows none of these pages
+	app.bounds, app.deviceScale = image.Rect(0, 0, 1024, 700), 1
+	tr := &tree{
+		pages:     map[string]whymark.PageInfo{"root": {ID: "root"}},
+		children:  map[string][]string{"": {"root"}},
+		lastChild: map[string]string{},
+		views:     map[string]*whynot.View{},
+		loading:   map[string]bool{},
+	}
+	for i := range n {
+		id := fmt.Sprint("p", i)
+		tr.pages[id] = whymark.PageInfo{ID: id, Parent: "root"}
+		tr.children["root"] = append(tr.children["root"], id)
+	}
+	tr.selected, tr.start = fmt.Sprint("p", n/2), fmt.Sprint("p", n/2)
+	app.tree = tr
+	tr.layoutMap()
+	tr.focusMap(0)
+	return app
+}
+
+func TestTreeMapPanZoom(t *testing.T) {
+	app := wideTree(t, 400)
+	app.expandMap(true)
+	m, _ := app.treeMapGeometry()
+	least, most, open := app.mapScales()
+	if open != 0.75 || least >= open || most != 1.5 {
+		t.Fatalf("the map's scales are %v, %v, %v", least, most, open)
+	}
+	sel := m.at(app.tree.selected)
+	if !sel.In(m.area) || m.step != 12 {
+		t.Errorf("the expanded map opens with the selected page at %v, leaves %v apart", sel, m.step)
+	}
+
+	// The wheel pans.
+	app.Frame([]input.Event{input.Wheel{X: 500, Y: 300, DX: 120}}, 0)
+	m2, _ := app.treeMapGeometry()
+	if d := sel.X - m2.at(app.tree.selected).X; d != 120 {
+		t.Errorf("the wheel moved the map by %d pixels, want 120", d)
+	}
+	// A drag pans, and doesn't select, even starting on a dot.
+	p := m2.at("p190")
+	app.Frame([]input.Event{
+		input.PointerButton{X: p.X, Y: p.Y, Button: input.ButtonPrimary, Down: true},
+		input.PointerMove{X: p.X + 60, Y: p.Y},
+		input.PointerButton{X: p.X + 60, Y: p.Y, Button: input.ButtonPrimary},
+	}, 0)
+	m3, _ := app.treeMapGeometry()
+	if d := m3.at("p190").X - p.X; d != 60 || app.tree.selected != "p200" || !app.MapExpanded() {
+		t.Errorf("a drag moved the map by %d, selected %s, left it expanded: %v", d, app.tree.selected, app.MapExpanded())
+	}
+	// Zooming keeps where the pointer is in place, and stops at the
+	// whole tree.
+	q := m3.at("p180")
+	shortcut := input.ModCtrl
+	if macOS {
+		shortcut = input.ModMeta
+	}
+	app.Frame([]input.Event{input.Wheel{X: q.X, Y: q.Y, DY: 200, Mods: shortcut}}, 0)
+	m4, _ := app.treeMapGeometry()
+	if r := m4.at("p180"); r.X-q.X > 1 || q.X-r.X > 1 || m4.step >= m3.step {
+		t.Errorf("zooming out moved p180 from %v to %v, leaves %v apart, were %v", q, r, m4.step, m3.step)
+	}
+	for range 20 {
+		app.Frame([]input.Event{input.Wheel{X: q.X, Y: q.Y, DY: 200, Mods: shortcut}}, 0)
+	}
+	if app.tree.mapK != least {
+		t.Errorf("zoomed right out, the map's scale is %v, want %v, the whole tree", app.tree.mapK, least)
+	}
+	// A tap on a dot selects its page.
+	m5, _ := app.treeMapGeometry()
+	r := m5.at("p0")
+	app.Frame([]input.Event{
+		input.PointerButton{X: r.X, Y: r.Y, Button: input.ButtonPrimary, Down: true},
+		input.PointerButton{X: r.X, Y: r.Y, Button: input.ButtonPrimary},
+	}, 0)
+	if app.tree.selected != "p0" || app.MapExpanded() {
+		t.Errorf("a tap on p0's dot selected %s, left the map expanded: %v", app.tree.selected, app.MapExpanded())
 	}
 }

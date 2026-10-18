@@ -3,10 +3,12 @@ package browser
 import (
 	"image"
 	"image/color"
+	"math"
 	"slices"
 	"time"
 
 	"github.com/arnodel/whynot/canvas"
+	"github.com/arnodel/whynot/input"
 )
 
 // The map of the tree of pages shows its pages as dots, laid out by the
@@ -63,8 +65,199 @@ func (a *App) expandMap(expand bool) {
 	if expand {
 		to = 1
 	}
-	if t.mapGrow.to != to {
-		t.mapGrow = t.mapGrow.ease(to, time.Now(), treeZoomTime)
+	if t.mapGrow.to == to {
+		return
+	}
+	if expand && t.mapGrow.at(time.Now()) == 0 {
+		// It opens showing the whole tree, if it's readable so, or else
+		// readably, around the selected page.
+		least, _, open := a.mapScales()
+		t.mapK, t.mapCX, t.mapCY = open, t.mapX[t.selected], float64(t.mapDepth[t.selected])
+		if open == least {
+			t.mapCX, t.mapCY = float64(t.mapLeaves-1)/2, float64(t.mapRows)/2
+		}
+		a.clampMap()
+	}
+	t.mapGrow = t.mapGrow.ease(to, time.Now(), treeZoomTime)
+}
+
+// The expanded map's scale is relative to the corner's, whose leaves are
+// mapStep apart, and rows mapRowStep, in logical pixels.
+const mapStep, mapRowStep = 16, 22
+
+// mapScales returns the scales the expanded map zooms between, least to
+// show the whole tree and most to show it no more than one and a half
+// times as big as the corner does, and the one it opens at: as little as
+// that, but no less than readable.
+func (a *App) mapScales() (least, most, open float64) {
+	t := a.tree
+	big := a.mapArea()
+	most = 1.5 // expanding shows more, not just bigger
+	least = most
+	if n := t.mapLeaves - 1; n > 0 {
+		least = min(least, float64(big.Dx())/(mapStep*a.deviceScale*float64(n)))
+	}
+	if n := t.mapRows; n > 0 {
+		least = min(least, float64(big.Dy())/(mapRowStep*a.deviceScale*float64(n)))
+	}
+	const readable = 0.75
+	return least, most, min(most, max(least, readable))
+}
+
+// mapArea returns where the expanded map's dots are.
+func (a *App) mapArea() image.Rectangle {
+	s := a.deviceScale
+	return a.bounds.Inset(int(12 * s)).Inset(int(10 * s))
+}
+
+// clampMap keeps the expanded map's scale between its least and most, and
+// its middle where the tree stays in view: in the middle of the tree in a
+// direction it fits in.
+func (a *App) clampMap() {
+	t := a.tree
+	least, most, _ := a.mapScales()
+	t.mapK = max(least, min(most, t.mapK))
+	big := a.mapArea()
+	clamp := func(c float64, n int, size, step float64) float64 {
+		half := size / 2 / step
+		if float64(n) <= 2*half {
+			return float64(n) / 2
+		}
+		return max(half, min(float64(n)-half, c))
+	}
+	s := a.deviceScale
+	t.mapCX = clamp(t.mapCX, max(t.mapLeaves-1, 0), float64(big.Dx()), t.mapK*mapStep*s)
+	t.mapCY = clamp(t.mapCY, t.mapRows, float64(big.Dy()), t.mapK*mapRowStep*s)
+}
+
+// panMap moves the expanded map's view by dx, dy in pixels: towards the
+// tree's right and bottom for positive ones.
+func (a *App) panMap(dx, dy float64) {
+	t := a.tree
+	s := a.deviceScale
+	t.mapCX += dx / (t.mapK * mapStep * s)
+	t.mapCY += dy / (t.mapK * mapRowStep * s)
+	a.clampMap()
+}
+
+// zoomMap zooms the expanded map by factor, keeping where p is on it in
+// place.
+func (a *App) zoomMap(factor float64, p image.Point) {
+	t := a.tree
+	s := a.deviceScale
+	big := a.mapArea()
+	cx, cy := float64(big.Min.X+big.Dx()/2), float64(big.Min.Y+big.Dy()/2)
+	// Where p is, in the map's x and depth, before and after.
+	ux := t.mapCX + (float64(p.X)-cx)/(t.mapK*mapStep*s)
+	uy := t.mapCY + (float64(p.Y)-cy)/(t.mapK*mapRowStep*s)
+	least, most, _ := a.mapScales()
+	t.mapK = max(least, min(most, t.mapK*factor))
+	t.mapCX = ux - (float64(p.X)-cx)/(t.mapK*mapStep*s)
+	t.mapCY = uy - (float64(p.Y)-cy)/(t.mapK*mapRowStep*s)
+	a.clampMap()
+}
+
+// keepSelectedOnMap pans the expanded map, if need be, so that the
+// selected page is in view, with a margin.
+func (a *App) keepSelectedOnMap() {
+	t := a.tree
+	s := a.deviceScale
+	big := a.mapArea()
+	keep := func(c, u, size, step float64) float64 {
+		half := max(0, size/2/step-1) // a step's margin
+		return max(u-half, min(u+half, c))
+	}
+	t.mapCX = keep(t.mapCX, t.mapX[t.selected], float64(big.Dx()), t.mapK*mapStep*s)
+	t.mapCY = keep(t.mapCY, float64(t.mapDepth[t.selected]), float64(big.Dy()), t.mapK*mapRowStep*s)
+	a.clampMap()
+}
+
+// A mapPress is a press on the expanded map, which is a tap until it has
+// moved far enough to be a drag, which pans it.
+type mapPress struct {
+	touch       int // the touch's ID, or -1 for the mouse
+	start, last image.Point
+	dragged     bool
+}
+
+// mapInput handles e on the expanded map: the wheel pans it, or zooms it
+// with the shortcut modifier; a drag pans it; a tap on a dot selects the
+// page, shrinking it back, as does a press outside it.
+func (a *App) mapInput(e input.Event) {
+	m, ok := a.treeMapGeometry()
+	if !ok {
+		return
+	}
+	t := a.tree
+	shortcut := input.ModCtrl
+	if macOS {
+		shortcut = input.ModMeta
+	}
+	press := func(touch int, p image.Point) {
+		if !p.In(m.rect) {
+			a.expandMap(false)
+			return
+		}
+		t.mapPress = &mapPress{touch: touch, start: p, last: p}
+	}
+	move := func(touch int, p image.Point) {
+		pr := t.mapPress
+		if pr == nil || pr.touch != touch {
+			return
+		}
+		if d := p.Sub(pr.start); !pr.dragged && float64(d.X*d.X+d.Y*d.Y) > 16*a.deviceScale*a.deviceScale {
+			pr.dragged = true
+		}
+		if pr.dragged {
+			a.panMap(float64(pr.last.X-p.X), float64(pr.last.Y-p.Y))
+			pr.last = p
+		}
+	}
+	release := func(touch int, p image.Point) {
+		pr := t.mapPress
+		if pr == nil || pr.touch != touch {
+			return
+		}
+		t.mapPress = nil
+		if !pr.dragged {
+			if id := m.dotAt(pr.start); id != "" {
+				a.movePage(id)
+				a.expandMap(false)
+			}
+		}
+	}
+	switch e := e.(type) {
+	case input.Wheel:
+		if e.Mods.Contain(shortcut) {
+			a.zoomMap(math.Pow(2, -e.DY/200), image.Pt(e.X, e.Y))
+			return
+		}
+		dx, dy := e.DX, e.DY
+		if e.Mods.Contain(input.ModShift) && dx == 0 {
+			dx, dy = dy, 0 // a mouse's wheel, sideways
+		}
+		a.panMap(dx*a.deviceScale, dy*a.deviceScale)
+	case input.PointerButton:
+		if e.Button != input.ButtonPrimary {
+			return
+		}
+		if e.Down {
+			press(-1, image.Pt(e.X, e.Y))
+		} else {
+			release(-1, image.Pt(e.X, e.Y))
+		}
+	case input.PointerMove:
+		move(-1, image.Pt(e.X, e.Y))
+	case input.TouchStart:
+		press(e.ID, image.Pt(e.X, e.Y))
+	case input.TouchMove:
+		move(e.ID, image.Pt(e.X, e.Y))
+	case input.TouchEnd:
+		if t.mapPress != nil {
+			release(e.ID, t.mapPress.last)
+		}
+	case input.TouchCancel:
+		t.mapPress = nil
 	}
 }
 
@@ -148,38 +341,20 @@ func (a *App) treeMapGeometry() (treeMap, bool) {
 	// In the corner: a fixed scale, centred on the focus.
 	fx, fy := t.focusX.at(now), t.focusY.at(now)
 	small := corner.Inset(pad)
-	step, rowStep := 16*s, 22*s
+	step, rowStep := mapStep*s, mapRowStep*s
 	x0 := float64(small.Min.X+small.Dx()/2) - fx*step
 	y0 := float64(small.Min.Y+small.Dy()/2) - fy*rowStep
 	halfW, halfH := float64(corner.Dx())/2/step, float64(corner.Dy())/2/rowStep
 	m.box.x0, m.box.y0, m.box.x1, m.box.y1 = fx-halfW, fy-halfH, fx+halfW, fy+halfH
-	// Expanded: the whole tree, as far as it fits, scaled from the corner's
-	// steps alike in both directions, so that the corner's part keeps its
-	// shape.
+	// Expanded: scaled from the corner's steps alike in both directions,
+	// so that the corner's part keeps its shape, around its middle (see
+	// expandMap, panMap and zoomMap).
 	big := full.Inset(pad)
-	k := 1.5 // expanding shows more, not just bigger
-	if n := t.mapLeaves - 1; n > 0 {
-		k = min(k, float64(big.Dx())/(step*float64(n)))
-	}
-	if n := t.mapRows; n > 0 {
-		k = min(k, float64(big.Dy())/(rowStep*float64(n)))
-	}
-	k = max(k, 0.4) // dots too close to point at: the part around the selection
-	bigStep, bigRowStep := k*step, k*rowStep
-	// first returns where the first of n+1 places step apart is in size:
-	// centred, or if they don't fit, with sel's in the middle, as far as
-	// the ends allow.
-	first := func(n int, step, size, sel float64) float64 {
-		content := step * float64(max(n, 0))
-		if content <= size {
-			return (size - content) / 2
-		}
-		return max(size-content, min(0, size/2-sel*step))
-	}
-	sx := first(t.mapLeaves-1, bigStep, float64(big.Dx()), fx)
-	sy := first(t.mapRows, bigRowStep, float64(big.Dy()), fy)
+	bigStep, bigRowStep := t.mapK*step, t.mapK*rowStep
+	bx0 := float64(big.Min.X+big.Dx()/2) - t.mapCX*bigStep
+	by0 := float64(big.Min.Y+big.Dy()/2) - t.mapCY*bigRowStep
 	m.step, m.rowStep = lerp(step, bigStep), lerp(rowStep, bigRowStep)
-	m.x0, m.y0 = lerp(x0, float64(big.Min.X)+sx), lerp(y0, float64(big.Min.Y)+sy)
+	m.x0, m.y0 = lerp(x0, bx0), lerp(y0, by0)
 	m.dot = int(max(3*s, min(7*s, min(m.step, m.rowStep)/2)))
 	return m, true
 }

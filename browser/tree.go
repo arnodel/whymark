@@ -50,8 +50,12 @@ type tree struct {
 	mapLeaves, mapRows int
 	// focusX and focusY are where the map's corner is centred, following
 	// the selected page, and mapGrow how far it's expanded (see
-	// expandMap).
+	// expandMap). Expanded, mapK is its scale, relative to the corner's,
+	// mapCX and mapCY where its middle is, and mapPress the press on it,
+	// if any.
 	focusX, focusY, mapGrow treeEase
+	mapK, mapCX, mapCY      float64
+	mapPress                *mapPress
 	// views are the pages' Views, by id, as they're shown in their
 	// frames: the page's own if this window has shown it, or else loaded
 	// (see loadThumb), with a stand-in until then.
@@ -297,6 +301,9 @@ func (a *App) selectPage(id string) {
 	t.selected = id
 	t.lastChild[t.pages[id].Parent] = id
 	t.focusMap(treeSlideTime)
+	if t.mapGrow.to == 1 {
+		a.keepSelectedOnMap()
+	}
 	var d image.Point
 	if after, ok := a.treeRect(old); ok {
 		d = after.Min.Sub(from[old].Min)
@@ -349,6 +356,21 @@ func (a *App) treeForward() {
 // was one of the tree's keys.
 func (a *App) treeKey(k Key) bool {
 	t := a.tree
+	if a.MapExpanded() && k.Shortcut && slices.Contains([]string{"=", "-", "0"}, k.Name) {
+		// Zooming the map, around the selected page, rather than pages.
+		if m, ok := a.treeMapGeometry(); ok {
+			switch k.Name {
+			case "=":
+				a.zoomMap(1.25, m.at(t.selected))
+			case "-":
+				a.zoomMap(1/1.25, m.at(t.selected))
+			default:
+				_, _, t.mapK = a.mapScales()
+				a.keepSelectedOnMap()
+			}
+		}
+		return true
+	}
 	if k.Shortcut || k.Shift || k.Alt {
 		return false
 	}
@@ -1026,6 +1048,10 @@ func (a *App) treeInput(events []input.Event) {
 	now := time.Now()
 	camera := a.tree.camera.at(now).Invert()
 	for _, e := range events {
+		if a.MapExpanded() {
+			a.mapInput(e)
+			continue
+		}
 		var at image.Point
 		switch e := e.(type) {
 		case input.PointerButton:
@@ -1038,21 +1064,10 @@ func (a *App) treeInput(events []input.Event) {
 		default:
 			continue
 		}
-		if m, ok := a.treeMapGeometry(); ok && (a.MapExpanded() || at.In(m.rect)) {
-			// The map is over the tiles: a click on it is its. In its
-			// corner, it expands; expanded, a click on a dot selects the
-			// page, and a click on a dot or outside the map shrinks it back.
-			switch {
-			case !a.MapExpanded():
-				a.expandMap(true)
-			case at.In(m.rect):
-				if id := m.dotAt(at); id != "" {
-					a.movePage(id)
-					a.expandMap(false)
-				}
-			default:
-				a.expandMap(false)
-			}
+		if m, ok := a.treeMapGeometry(); ok && at.In(m.rect) {
+			// The map is over the tiles: a click on it expands it (see
+			// mapInput for the expanded map).
+			a.expandMap(true)
 			return
 		}
 		x, y := camera.Apply(float64(at.X), float64(at.Y))
