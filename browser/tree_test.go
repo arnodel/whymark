@@ -588,3 +588,43 @@ func TestTreeTheme(t *testing.T) {
 		t.Error("switching theme didn't switch the tree's pages")
 	}
 }
+
+// TestTreeKeepsKeys checks that the page's input field isn't offered while
+// the tree shows, so that the keys are the tree's, and that pointing at a
+// dot of the map starts loading its page, without waiting for an Update.
+func TestTreeKeepsKeys(t *testing.T) {
+	dir := t.TempDir()
+	start := writeTempMD(t, dir, "start.md", "# Start\n")
+	writeTempMD(t, dir, "say.md", "---\nwhymark:\n  version: 1\n---\n# Say\n\n```input word\nA word?\n```\n")
+	instantTree(t)
+	app := newTestApp(t, dir, start, "# Start\n", withStore(t, dir))
+	app.Relayout(1024, 700, 1, 0)
+	app.Follow("say.md")
+	if _, ok := app.Input(); !ok {
+		t.Fatal("the page has no input field")
+	}
+	app.SubmitInput("one")
+	app.Back()
+	app.SubmitInput("two")
+	app.ShowTree()
+	if _, ok := app.Input(); ok {
+		t.Error("the input field is offered while the tree shows")
+	}
+	// The other child isn't loaded: pointing at its dot starts loading it.
+	m, _ := app.treeMapGeometry()
+	var other string
+	for id := range app.tree.pages {
+		if id != app.tree.selected && app.tree.pages[id].Parent != "" {
+			other = id
+		}
+	}
+	p := m.at(other)
+	app.Frame([]input.Event{input.PointerMove{X: p.X, Y: p.Y}}, 0)
+	if _, loaded := app.tree.views[other]; !loaded && !app.tree.loading[other] {
+		t.Error("pointing at a dot didn't start loading its page")
+	}
+	app.HideTree()
+	if _, ok := app.Input(); !ok {
+		t.Error("the input field isn't offered again once the tree is closed")
+	}
+}

@@ -229,6 +229,9 @@ func (a *App) currentInput() (*whymarkPage, *inputField) {
 // placeholder. The app shows a text field for it, whose text it passes to
 // SubmitInput, keeping what's typed with SetInputDraft.
 func (a *App) Input() (placeholder string, ok bool) {
+	if a.tree != nil {
+		return "", false // the tree of pages has the keys
+	}
 	_, f := a.currentInput()
 	if f == nil {
 		return "", false

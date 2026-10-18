@@ -1017,6 +1017,9 @@ func (a *App) addThumbs() {
 // treeInput handles events while the tree view shows: a click on a page
 // selects it, and a click on the selected page opens it.
 func (a *App) treeInput(events []input.Event) {
+	// The pointer may now be on a dot of the map whose page isn't loaded:
+	// a program that draws only when asked has no Update to start it.
+	defer a.loadThumbs()
 	if a.tree.closing != nil {
 		return
 	}
