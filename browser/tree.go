@@ -520,6 +520,24 @@ func (t *tree) path() map[string]bool {
 	return path
 }
 
+// shownPath returns the pages of the tree's path from the page the view
+// was opened from (see tree.path) that the tree view shows on it, if the
+// tree-path experiment is on: a path through the parent to a sibling goes
+// along the row's line, which joins siblings, so the parent is on it only
+// if it goes on up.
+func (a *App) shownPath() map[string]bool {
+	if !a.experiment("tree-path") {
+		return nil
+	}
+	t := a.tree
+	path := t.path()
+	parent := t.pages[t.selected].Parent
+	if slices.ContainsFunc(t.children[parent], func(id string) bool { return id != t.selected && path[id] }) {
+		delete(path, parent)
+	}
+	return path
+}
+
 // treeLines returns the lines of the tree view, as rectangles to fill,
 // between frames, which are where they're shown: one joining each row of
 // siblings, and one from the selected page up to its parent and down to
@@ -533,10 +551,7 @@ func (a *App) treeLines(frames []treeFrame) (lines, path []image.Rectangle) {
 	for _, f := range frames {
 		at[f.id] = f.rect
 	}
-	var on map[string]bool
-	if a.experiment("tree-path") {
-		on = t.path()
-	}
+	on := a.shownPath()
 	// add adds a line to lines, or to path if it's on, as thick as it
 	// then is: thick is a function of it, for rectangles centred on it.
 	add := func(onPath bool, line func(thick int) []image.Rectangle) {
@@ -560,22 +575,19 @@ func (a *App) treeLines(frames []treeFrame) (lines, path []image.Rectangle) {
 	}
 	sel := at[t.selected]
 	parent := t.pages[t.selected].Parent
+	siblings := t.children[parent]
+	k := slices.Index(siblings, t.selected)
+	target := slices.IndexFunc(siblings, func(id string) bool { return id != t.selected && on[id] })
 	if parent != "" {
 		link(on[parent], at[parent], sel)
 	}
 	if child := t.preferredChild(t.selected); child != "" {
 		link(on[child], sel, at[child])
 	}
-	for _, siblings := range [][]string{t.children[parent], t.children[t.selected]} {
-		// Along the selected page's row, the path goes from it, through
-		// the parent's line, to a sibling on it.
-		k, target := slices.Index(siblings, t.selected), -1
-		if k >= 0 && on[parent] {
-			target = slices.IndexFunc(siblings, func(id string) bool { return id != t.selected && on[id] })
-		}
+	for row, siblings := range [][]string{siblings, t.children[t.selected]} {
 		for i := 1; i < len(siblings); i++ {
 			l, r := at[siblings[i-1]], at[siblings[i]]
-			onPath := target >= 0 && i > min(k, target) && i <= max(k, target)
+			onPath := row == 0 && target >= 0 && i > min(k, target) && i <= max(k, target)
 			add(onPath, func(thick int) []image.Rectangle {
 				y := l.Min.Y + l.Dy()/2 - thick/2
 				return []image.Rectangle{image.Rect(l.Max.X, y, r.Min.X, y+thick)}
@@ -601,6 +613,7 @@ func (a *App) drawTree(dst canvas.Canvas, now time.Duration) {
 	for _, l := range lines {
 		dst.DrawRect(l.Min.X, l.Min.Y, l.Dx(), l.Dy(), line)
 	}
+	on := a.shownPath()
 	accent := a.Panel.View().HighlightColor()
 	for _, l := range path {
 		dst.DrawRect(l.Min.X, l.Min.Y, l.Dx(), l.Dy(), accent)
@@ -620,10 +633,14 @@ func (a *App) drawTree(dst canvas.Canvas, now time.Duration) {
 			X:     float64(f.rect.Min.X) - scale*float64(b.Min.X),
 			Y:     float64(f.rect.Min.Y) - scale*float64(b.Min.Y),
 		}), now)
-		// The page the view was opened from is framed as the path is.
+		// The pages on the path are framed as it is, and the page the view
+		// was opened from, where it leads, thicker.
 		clr, frame := line, thick
-		if f.id == t.start && a.experiment("tree-path") {
-			clr, frame = accent, 3*thick
+		if on[f.id] && len(on) > 1 {
+			clr = accent
+		}
+		if f.id == t.start && on[f.id] {
+			frame = 3 * thick
 		}
 		r := f.rect.Inset(-frame)
 		dst.DrawRect(r.Min.X, r.Min.Y, r.Dx(), frame, clr)

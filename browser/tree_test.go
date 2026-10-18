@@ -329,8 +329,8 @@ func TestTreePath(t *testing.T) {
 		t.Errorf("the path from the shout's page to the lamp's is %v", got)
 	}
 	_, path := app.treeLines(app.shownFrames(time.Now()))
-	if len(path) != 4 { // the parent's line, bent in three, and the row's
-		t.Errorf("%d lines on the path, want 4", len(path))
+	if len(path) != 1 { // the row's, which joins siblings, not the parent's
+		t.Errorf("%d lines on the path, want 1", len(path))
 	}
 	press(app, "2") // the second experiment: the path
 	if _, path := app.treeLines(app.shownFrames(time.Now())); len(path) != 0 {
@@ -339,5 +339,37 @@ func TestTreePath(t *testing.T) {
 	press(app, "Right")
 	if got := app.tree.path(); len(got) != 1 || !got[shout] {
 		t.Errorf("the path from a page to itself is %v", got)
+	}
+}
+
+// TestTreePathUpAndAcross checks the path after going up, then to a
+// sibling: it goes along the row, not up.
+func TestTreePathUpAndAcross(t *testing.T) {
+	app, _, lamp, shout := treeApp(t)
+	app.FollowAnchor("cellar") // a child of the shout's page
+	cellar := pageID(app)
+	app.ShowTree()
+	press(app, "Up")
+	if got := app.tree.path(); len(got) != 2 || !got[shout] || !got[cellar] {
+		t.Errorf("the path after going up is %v", got)
+	}
+	_, path := app.treeLines(app.shownFrames(time.Now()))
+	if len(path) != 3 { // the line down to the child, bent in three
+		t.Errorf("after going up, %d lines on the path, want 3", len(path))
+	}
+	press(app, "Left")
+	if app.tree.selected != lamp {
+		t.Fatalf("%s is selected, want %s", app.tree.selected, lamp)
+	}
+	lines, path := app.treeLines(app.shownFrames(time.Now()))
+	if len(path) != 1 {
+		t.Errorf("after going across, %d lines on the path, want 1, the row's", len(path))
+	}
+	if len(lines) < 3 {
+		t.Errorf("only %d lines off the path", len(lines))
+	}
+	// The parent is on the tree's path, but not on the path shown.
+	if on := app.shownPath(); len(on) != 3 || on[app.tree.pages[lamp].Parent] {
+		t.Errorf("the path shown is %v", on)
 	}
 }
