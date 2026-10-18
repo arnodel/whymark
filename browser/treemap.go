@@ -49,8 +49,7 @@ func (t *tree) layoutMap() {
 // A treeMap is where the map of the tree of pages is on the window.
 type treeMap struct {
 	tree *tree
-	// rect is the map, area where its dots are, and bar its label of the
-	// selected page.
+	// rect is the map, and area where its dots are.
 	rect, area image.Rectangle
 	// x0, y0 are where the map's x and depth 0 are, step and rowStep how
 	// far apart its leaves and its rows are, and dot how big a dot is.
@@ -66,14 +65,13 @@ func (a *App) treeMapGeometry() (treeMap, bool) {
 	b := a.bounds
 	s := a.deviceScale
 	w, h := b.Dx()/4, b.Dy()/4
-	_, bar, _, ok := a.treeLabelFace()
-	if t == nil || !a.experiment("tree-map") || !ok || float64(w) < 120*s || h < 3*bar {
+	if t == nil || !a.experiment("tree-map") || float64(w) < 120*s || float64(h) < 60*s {
 		return treeMap{}, false
 	}
 	margin, pad := int(12*s), int(10*s)
 	rect := image.Rect(b.Max.X-margin-w, b.Max.Y-margin-h, b.Max.X-margin, b.Max.Y-margin)
 	m := treeMap{tree: t, rect: rect}
-	m.area = image.Rect(rect.Min.X+pad, rect.Min.Y+pad, rect.Max.X-pad, rect.Max.Y-bar-pad)
+	m.area = rect.Inset(pad)
 	// fit returns the step between n+1 places in size, at least least,
 	// and where the first is: centred, or if they don't fit, with sel's in
 	// the middle, as far as the ends allow.
@@ -208,8 +206,6 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 		d := m.dot / 2
 		fill(in, image.Rect(c.X-d, c.Y-d, c.X-d+m.dot, c.Y-d+m.dot), clr)
 	}
-	a.drawTreeLabel(dst, t.selected, r, wall)
-
 	if hovered == "" {
 		return
 	}

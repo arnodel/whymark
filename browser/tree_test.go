@@ -217,7 +217,6 @@ func TestTreeAnimates(t *testing.T) {
 func TestTreeLabels(t *testing.T) {
 	app, _, _, _ := treeApp(t)
 	app.Relayout(1024, 700, 1, 0)
-	app.toggleExperiment("tree-map") // its own label of the selected page
 	app.ShowTree()
 	texts := func() string {
 		r := &recorder{Area: app.Bounds()}
