@@ -771,7 +771,7 @@ func (a *App) drawTree(dst canvas.Canvas, now time.Duration) {
 		// The pages on the path are framed as it is, and the page the view
 		// was opened from, where it leads, thicker.
 		clr, frame := line, thick
-		if on[f.id] && len(on) > 1 {
+		if on[f.id] {
 			clr = accent
 		}
 		if f.id == t.start && on[f.id] {
