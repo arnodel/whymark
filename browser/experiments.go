@@ -18,7 +18,7 @@ type experiment struct {
 var experiments = []experiment{
 	{name: "tree-labels", text: "Labels in the tree of pages", on: true},
 	{name: "tree-path", text: "The way back in the tree of pages", on: true},
-	{name: "tree-bus", text: "Rows hanging from a line in the tree of pages", on: true},
+	{name: "tree-bus", text: "Rows hanging from a line in the tree of pages"},
 }
 
 // experiment reports whether the experiment name is on.
