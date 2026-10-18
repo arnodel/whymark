@@ -145,24 +145,31 @@ func (a *App) treeMapGeometry() (treeMap, bool) {
 	y0 := float64(small.Min.Y+small.Dy()/2) - fy*rowStep
 	halfW, halfH := float64(small.Dx())/2/step, float64(small.Dy())/2/rowStep
 	m.box.x0, m.box.y0, m.box.x1, m.box.y1 = fx-halfW, fy-halfH, fx+halfW, fy+halfH
-	// fit returns the step between n+1 places in size, at least least,
-	// and where the first is: centred, or if they don't fit, with sel's in
-	// the middle, as far as the ends allow.
-	fit := func(n int, size, least, sel float64) (step, first float64) {
-		step = 40 * s
-		if n > 0 {
-			step = min(40*s, max(least, size/float64(n)))
-		}
-		content := step * float64(n)
-		if content <= size {
-			return step, (size - content) / 2
-		}
-		return step, max(size-content, min(0, size/2-sel*step))
-	}
-	// Expanded: the whole tree, as far as it fits.
+	// Expanded: the whole tree, as far as it fits, scaled from the corner's
+	// steps alike in both directions, so that the corner's part keeps its
+	// shape.
 	big := full.Inset(pad)
-	bigStep, sx := fit(t.mapLeaves-1, float64(big.Dx()), 6*s, fx)
-	bigRowStep, sy := fit(t.mapRows, float64(big.Dy()), 6*s, fy)
+	k := 2.5
+	if n := t.mapLeaves - 1; n > 0 {
+		k = min(k, float64(big.Dx())/(step*float64(n)))
+	}
+	if n := t.mapRows; n > 0 {
+		k = min(k, float64(big.Dy())/(rowStep*float64(n)))
+	}
+	k = max(k, 0.4) // dots too close to point at: the part around the selection
+	bigStep, bigRowStep := k*step, k*rowStep
+	// first returns where the first of n+1 places step apart is in size:
+	// centred, or if they don't fit, with sel's in the middle, as far as
+	// the ends allow.
+	first := func(n int, step, size, sel float64) float64 {
+		content := step * float64(max(n, 0))
+		if content <= size {
+			return (size - content) / 2
+		}
+		return max(size-content, min(0, size/2-sel*step))
+	}
+	sx := first(t.mapLeaves-1, bigStep, float64(big.Dx()), fx)
+	sy := first(t.mapRows, bigRowStep, float64(big.Dy()), fy)
 	m.step, m.rowStep = lerp(step, bigStep), lerp(rowStep, bigRowStep)
 	m.x0, m.y0 = lerp(x0, float64(big.Min.X)+sx), lerp(y0, float64(big.Min.Y)+sy)
 	m.dot = int(max(3*s, min(7*s, min(m.step, m.rowStep)/2)))
@@ -285,11 +292,14 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 	if hovered == "" {
 		return
 	}
-	// The card: a frame's size scaled to a quarter of the window's width,
-	// above the map in its corner, or else beside the pointer.
+	// The card: in the corner, a quarter of the window's width, above the
+	// map; expanded, a tile's size, beside the pointer, inside the window.
 	b := a.bounds
 	gap := int(8 * a.deviceScale)
 	w := b.Dx() / 4
+	if m.grown > 0 {
+		w = b.Dx() / 2
+	}
 	h := w * b.Dy() / max(1, b.Dx())
 	card := image.Rect(r.Max.X-w, r.Min.Y-gap-h, r.Max.X, r.Min.Y-gap)
 	if m.grown > 0 {
@@ -300,6 +310,8 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 		if p.Y+h > b.Max.Y {
 			p.Y = a.pointer.Y - 2*gap - h
 		}
+		p.X = max(b.Min.X, min(p.X, b.Max.X-w))
+		p.Y = max(b.Min.Y, min(p.Y, b.Max.Y-h))
 		card = image.Rect(p.X, p.Y, p.X+w, p.Y+h)
 	}
 	if !card.In(b) {
@@ -307,8 +319,8 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 	}
 	fill(dst, card, theme.BackgroundColor)
 	a.drawThumb(dst, hovered, card, now)
-	frame(dst, card, thin, theme.TextColor)
 	a.drawTreeLabel(dst, hovered, card, wall)
+	frame(dst, card.Inset(-thin), thin, theme.TextColor)
 }
 
 // fill fills r on dst with clr.

@@ -505,6 +505,11 @@ func TestTreeMap(t *testing.T) {
 	if m.grown != 1 || m.box.x1 <= m.box.x0 {
 		t.Errorf("the expanded map is %v grown, with a box %v", m.grown, m.box)
 	}
+	// The box is the corner's shape, whose steps are 16 and 22 pixels.
+	boxW, boxH := (m.box.x1-m.box.x0)*m.step, (m.box.y1-m.box.y0)*m.rowStep
+	if got, want := boxW/boxH, (m.box.x1-m.box.x0)*16/((m.box.y1-m.box.y0)*22); got-want > 0.01 || want-got > 0.01 {
+		t.Errorf("the box's shape is %.3f, want the corner's, %.3f", got, want)
+	}
 	app.Frame([]input.Event{input.PointerMove{X: m.at(shout).X, Y: m.at(shout).Y}}, 0)
 	if got := app.mapHovered(); got != shout {
 		t.Errorf("pointing at the shout's dot points at %q", got)
