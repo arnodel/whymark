@@ -1,8 +1,9 @@
-// Package viewer is what the whymark viewers share as programs, around
-// the browser they show: their data directory, their config file, and the
-// engine they build for it, with its store of pages, its AI, and the
-// documents that may use it.
-package viewer
+// Package appsetup is how the whymark viewers are set up, as programs,
+// around the browser they show: their data directory, their config file,
+// and the engine they build for it, with its store of pages, its AI, and
+// the documents that may use it. These are this app's choices, which
+// another program using the browser would make its own way.
+package appsetup
 
 import (
 	"log"

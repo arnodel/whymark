@@ -1,6 +1,6 @@
 //go:build !unix
 
-package viewer
+package appsetup
 
 // checkPrivate is a no-op where files have no Unix permissions: on
 // Windows, a file in the user's profile is private to them by default.

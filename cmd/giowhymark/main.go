@@ -7,7 +7,7 @@ package main
 
 import (
 	"flag"
-	"github.com/arnodel/whymark/internal/viewer"
+	"github.com/arnodel/whymark/internal/appsetup"
 	"image"
 	"log"
 	"os"
@@ -63,8 +63,8 @@ func main() {
 	}
 
 	win := new(app.Window)
-	browserApp := browser.NewApp(browser.NewDocumentFaceSelector(), styleSheet, !*light, registry, viewer.NewEngine(registry, *remoteAI))
-	if dir, err := viewer.DataDir(); err == nil {
+	browserApp := browser.NewApp(browser.NewDocumentFaceSelector(), styleSheet, !*light, registry, appsetup.NewEngine(registry, *remoteAI))
+	if dir, err := appsetup.DataDir(); err == nil {
 		if err := browserApp.RememberLatest(dir); err != nil {
 			log.Printf("remembering the latest pages: %v", err)
 		}
