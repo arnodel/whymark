@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/base32"
 	"fmt"
-	"github.com/arnodel/whymark"
 	"hash/fnv"
 	"io"
 	"log"
@@ -19,6 +18,7 @@ import (
 
 	"github.com/arnodel/golua/code"
 	rt "github.com/arnodel/golua/runtime"
+	"github.com/arnodel/whymark"
 
 	"github.com/arnodel/whymark/engine/compile"
 	"github.com/arnodel/whynot/fetch"

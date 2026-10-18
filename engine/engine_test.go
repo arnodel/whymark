@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"crypto/sha256"
-	"github.com/arnodel/whymark"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +16,7 @@ import (
 	"time"
 
 	rt "github.com/arnodel/golua/runtime"
+	"github.com/arnodel/whymark"
 
 	"github.com/arnodel/whymark/engine/compile"
 	"github.com/arnodel/whynot/fetch"

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/arnodel/whymark"
 	"io"
 	"net/url"
 	"os"
@@ -14,6 +13,7 @@ import (
 	"github.com/arnodel/golua/code"
 	rt "github.com/arnodel/golua/runtime"
 	"github.com/arnodel/golua/safeio"
+	"github.com/arnodel/whymark"
 
 	"github.com/arnodel/whymark/engine/compile"
 )

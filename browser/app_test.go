@@ -3,7 +3,6 @@
 package browser
 
 import (
-	"github.com/arnodel/whymark/engine"
 	"image"
 	"net/url"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/arnodel/whymark/engine"
 	"github.com/arnodel/whynot"
 	"github.com/arnodel/whynot/fonts"
 	"github.com/arnodel/whynot/input"
@@ -52,7 +52,7 @@ func writeTempMD(t *testing.T, dir, name, content string) *url.URL {
 // registry of its own, as a viewer's does.
 func newApp(options ...engine.Option) *App {
 	registry := NewRegistry(nil)
-	return NewApp(fonts.NewGoSelector(), simpletheme.DarkStyleSheet, true, registry, engine.NewEngine(registry, options...))
+	return NewApp(fonts.NewGoSelector(), simpletheme.DarkStyleSheet, true, registry, engine.NewEngine(registry, options...), nil)
 }
 
 // withStore is an option keeping the engine's pages in a database in dir,

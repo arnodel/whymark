@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/arnodel/whymark"
 	"io"
 	"net/url"
 	"os"
@@ -14,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/arnodel/whymark"
 	"github.com/arnodel/whymark/engine"
 	"github.com/arnodel/whynot/fetch"
 )

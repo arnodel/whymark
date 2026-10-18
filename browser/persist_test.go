@@ -3,10 +3,11 @@
 package browser
 
 import (
-	"github.com/arnodel/whymark"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/arnodel/whymark"
 )
 
 // TestResume checks persistence across sessions: a document asking to be
@@ -15,6 +16,7 @@ import (
 // always starts afresh.
 func TestResume(t *testing.T) {
 	dir, data := t.TempDir(), t.TempDir()
+	user := NewMemoryUserData() // the same user, session after session
 	counter := func(resume string) string {
 		return "---\nwhymark:\n  version: 1\n" + resume + "---\n```lua\nfunction init(turn) return {n = 0} end\n```\n# (Count)\n\n" +
 			"`turn.state.n = turn.state.n + 1`\ncount `= turn.state.n`\n\n[again](?) · [start over](counter.md)\n"
@@ -24,9 +26,7 @@ func TestResume(t *testing.T) {
 	writeTempMD(t, dir, "plain.md", strings.Replace(counter(""), "counter.md", "plain.md", 1))
 	session := func() *App {
 		app := newTestApp(t, dir, start, "# Start\n\n[Resumed](resumed.md) · [Plain](plain.md)\n", withStore(t, data))
-		if err := app.RememberLatest(data); err != nil {
-			t.Fatal(err)
-		}
+		app.user = user
 		return app
 	}
 	shows := func(app *App, what, want string) {
@@ -66,14 +66,13 @@ func TestResume(t *testing.T) {
 // CopyLink copies it.
 func TestPageURL(t *testing.T) {
 	dir, data := t.TempDir(), t.TempDir()
+	user := NewMemoryUserData() // the same user, session after session
 	start := writeTempMD(t, dir, "start.md", "# Start\n\n[Count](count.md)\n")
 	writeTempMD(t, dir, "count.md", "---\nwhymark:\n  version: 1\n  resume: true\n---\n```lua\nfunction init(turn) return {n = 0} end\n```\n"+
 		"# Count\n\n`turn.state.n = turn.state.n + 1`\ncount `= turn.state.n`\n")
 	session := func() *App {
 		app := newTestApp(t, dir, start, "# Start\n\n[Count](count.md)\n", withStore(t, data))
-		if err := app.RememberLatest(data); err != nil {
-			t.Fatal(err)
-		}
+		app.user = user
 		return app
 	}
 	first := session()
@@ -124,14 +123,13 @@ func TestPageURLArg(t *testing.T) {
 // that nothing is loaded outside journal mode.
 func TestPageTrail(t *testing.T) {
 	dir, data := t.TempDir(), t.TempDir()
+	user := NewMemoryUserData() // the same user, session after session
 	start := writeTempMD(t, dir, "start.md", "# Start\n\n[Count](count.md)\n")
 	writeTempMD(t, dir, "count.md", "---\nwhymark:\n  version: 1\n---\n```lua\nfunction init(turn) return {n = 0} end\n```\n"+
 		"# Count\n\n`turn.state.n = turn.state.n + 1`\ncount `= turn.state.n`\n")
 	session := func() *App {
 		app := newTestApp(t, dir, start, "# Start\n\n[Count](count.md)\n", withStore(t, data))
-		if err := app.RememberLatest(data); err != nil {
-			t.Fatal(err)
-		}
+		app.user = user
 		return app
 	}
 	first := session()
@@ -174,12 +172,11 @@ func TestPageTrail(t *testing.T) {
 // it in the engine's store.
 func TestVisits(t *testing.T) {
 	dir, data := t.TempDir(), t.TempDir()
+	user := NewMemoryUserData() // the same user, session after session
 	start := writeTempMD(t, dir, "start.md", "# Start\n\n[Count](count.md)\n")
 	writeTempMD(t, dir, "count.md", "---\nwhymark:\n  version: 1\n---\n# Count\n\n[Again](?)\n")
 	app := newTestApp(t, dir, start, "# Start\n\n[Count](count.md)\n", withStore(t, data))
-	if err := app.RememberLatest(data); err != nil {
-		t.Fatal(err)
-	}
+	app.user = user
 	app.Follow("count.md")
 	app.Update()
 	first := app.Location()

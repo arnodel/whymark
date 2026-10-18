@@ -57,6 +57,23 @@ func NewEngine(registry *fetch.Registry, remoteAI bool) *engine.Engine {
 	return engine.NewEngine(registry, options...)
 }
 
+// UserData returns what the browser keeps for the user (see
+// browser.UserData): in the data directory (see DataDir), where files can
+// be kept, or else nil, for the browser to keep it in memory. What goes
+// wrong is logged.
+func UserData() browser.UserData {
+	dir, err := DataDir()
+	if err != nil {
+		return nil
+	}
+	user, err := openUserData(dir)
+	if err != nil {
+		log.Printf("keeping the user's data: %v", err)
+		return nil
+	}
+	return user
+}
+
 // isLocal reports whether location is a local document's: a file, or one
 // built into the browser.
 func isLocal(location *url.URL) bool {

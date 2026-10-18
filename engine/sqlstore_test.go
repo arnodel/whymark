@@ -3,10 +3,11 @@
 package engine
 
 import (
-	"github.com/arnodel/whymark"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/arnodel/whymark"
 )
 
 func newSQLiteStore(t *testing.T) *SQLiteStore {

@@ -2,13 +2,14 @@ package engine
 
 import (
 	"bufio"
-	"github.com/arnodel/whymark"
 	"io"
 	"math"
 	"net/url"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/arnodel/whymark"
 )
 
 // TestSavedValues checks that state saved as JSON comes back with its

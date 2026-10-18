@@ -12,7 +12,6 @@ package browser
 
 import (
 	"errors"
-	"github.com/arnodel/whymark"
 	"image"
 	"log"
 	"net/url"
@@ -21,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/arnodel/whymark"
 	"github.com/arnodel/whynot"
 	"github.com/arnodel/whynot/codeblocks/chromahighlight"
 	"github.com/arnodel/whynot/codeblocks/kroki"
@@ -112,10 +112,8 @@ type App struct {
 	// each page of one, its header and the request it answered.
 	engine whymark.Engine
 	pages  map[*whynot.Document]*whymarkPage
-	// latest is the latest page of each whymark document that asks to be
-	// resumed, by its URL, kept in latestFile if set (see persist.go).
-	latest     map[string]string
-	latestFile string
+	// user is what the browser keeps for its user (see UserData).
+	user UserData
 	// trails holds the trails loaded in the background, for Update to add
 	// to history (see loadTrail).
 	trailsMu sync.Mutex
@@ -186,8 +184,12 @@ type App struct {
 // call NewView to build the first document's View, construct the real
 // Panel from it, assign it to Panel, then call Open to make it current.
 // Documents and their images are fetched through registry (see
-// NewRegistry), and whymark documents' pages come from engine.
-func NewApp(faceSelector fonts.FaceSelector, styleSheet whynot.StyleSheet, dark bool, registry *fetch.Registry, engine whymark.Engine) *App {
+// NewRegistry), whymark documents' pages come from engine, and what's
+// kept for the user goes in user: in memory if it's nil.
+func NewApp(faceSelector fonts.FaceSelector, styleSheet whynot.StyleSheet, dark bool, registry *fetch.Registry, engine whymark.Engine, user UserData) *App {
+	if user == nil {
+		user = NewMemoryUserData()
+	}
 	return &App{
 		faceSelector: faceSelector,
 		styleSheet:   styleSheet,
@@ -200,6 +202,7 @@ func NewApp(faceSelector fonts.FaceSelector, styleSheet whynot.StyleSheet, dark 
 			whynot.WithCodeBlockPlugin(chromahighlight.Plugin{}),
 		),
 		engine:    engine,
+		user:      user,
 		darkTheme: dark,
 		zoom:      1,
 		touch:     runtime.GOOS == "android" || runtime.GOOS == "ios",

@@ -3,8 +3,8 @@ package compile
 import (
 	"bytes"
 	"fmt"
-	"github.com/arnodel/whymark"
 
+	"github.com/arnodel/whymark"
 	"go.yaml.in/yaml/v3"
 )
 

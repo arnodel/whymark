@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/arnodel/whymark/engine"
 	"image"
 	"os"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/widget"
+	"github.com/arnodel/whymark/engine"
 
 	"github.com/arnodel/whymark/browser"
 	"github.com/arnodel/whynot"
@@ -38,7 +38,7 @@ func TestKeysWhileTyping(t *testing.T) {
 		t.Fatal(err)
 	}
 	registry := browser.NewRegistry(nil)
-	app := browser.NewApp(fonts.NewGoSelector(), simpletheme.DarkStyleSheet, true, registry, engine.NewEngine(registry))
+	app := browser.NewApp(fonts.NewGoSelector(), simpletheme.DarkStyleSheet, true, registry, engine.NewEngine(registry), nil)
 	doc, err := app.Load(location)
 	if err != nil {
 		t.Fatal(err)
