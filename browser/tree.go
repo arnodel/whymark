@@ -39,6 +39,10 @@ type tree struct {
 	// return to, and undone the moves Back undid, most recent last, for
 	// Forward to make again.
 	moves, undone []string
+	// lastChild is the child of each page last selected, by the page's
+	// id, so that going up keeps the row of children where it was (see
+	// preferredChild).
+	lastChild map[string]string
 	// views are the pages' Views, by id, as they're shown in their
 	// frames: the page's own if this window has shown it, or else loaded
 	// (see loadThumb), with a stand-in until then.
@@ -156,11 +160,12 @@ func (a *App) ShowTree() {
 	}
 	a.hideOverlay()
 	t := &tree{
-		document: whymark.DocumentOf(p.header.Location),
-		selected: p.header.PageID,
-		start:    p.header.PageID,
-		views:    map[string]*whynot.View{},
-		loading:  map[string]bool{},
+		document:  whymark.DocumentOf(p.header.Location),
+		selected:  p.header.PageID,
+		start:     p.header.PageID,
+		views:     map[string]*whynot.View{},
+		loading:   map[string]bool{},
+		lastChild: map[string]string{},
 	}
 	a.tree = t
 	a.listPages()
@@ -279,6 +284,7 @@ func (a *App) selectPage(id string) {
 	}
 	old := t.selected
 	t.selected = id
+	t.lastChild[t.pages[id].Parent] = id
 	var d image.Point
 	if after, ok := a.treeRect(old); ok {
 		d = after.Min.Sub(from[old].Min)
@@ -368,13 +374,18 @@ func (a *App) treeKey(k Key) bool {
 	return true
 }
 
-// preferredChild returns the child of id Down selects: the one on the way
-// back to the page the view was opened from, if any, or else the one
-// visited most recently, or else the newest. It's "" without children.
+// preferredChild returns the child of id Down selects, and the row of its
+// children is lined up on: the one last selected, so that going up and
+// down again changes nothing, if any; or else the one on the way back to
+// the page the view was opened from, if any; or else the one visited most
+// recently, or else the newest. It's "" without children.
 func (t *tree) preferredChild(id string) string {
 	children := t.children[id]
 	if len(children) == 0 {
 		return ""
+	}
+	if c, ok := t.lastChild[id]; ok && slices.Contains(children, c) {
+		return c
 	}
 	for p := t.start; p != ""; p = t.pages[p].Parent {
 		if t.pages[p].Parent == id {
@@ -573,21 +584,32 @@ func (a *App) treeLines(frames []treeFrame) (lines, path []image.Rectangle) {
 			}
 		})
 	}
+	// Along a row, the path goes from the page lined up under the line
+	// above, the selected page or the child under it, to the page on it.
+	along := func(row []string, from string) (k, target int) {
+		k = slices.Index(row, from)
+		return k, slices.IndexFunc(row, func(id string) bool { return id != from && on[id] })
+	}
 	sel := at[t.selected]
 	parent := t.pages[t.selected].Parent
-	siblings := t.children[parent]
-	k := slices.Index(siblings, t.selected)
-	target := slices.IndexFunc(siblings, func(id string) bool { return id != t.selected && on[id] })
+	siblings, children := t.children[parent], t.children[t.selected]
+	child := t.preferredChild(t.selected)
+	k, target := along(siblings, t.selected)
+	ck, ctarget := along(children, child)
 	if parent != "" {
 		link(on[parent], at[parent], sel)
 	}
-	if child := t.preferredChild(t.selected); child != "" {
-		link(on[child], sel, at[child])
+	if child != "" {
+		link(on[child] || ctarget >= 0, sel, at[child])
 	}
-	for row, siblings := range [][]string{siblings, t.children[t.selected]} {
+	for _, row := range []struct {
+		ids       []string
+		k, target int
+	}{{siblings, k, target}, {children, ck, ctarget}} {
+		siblings, k, target := row.ids, row.k, row.target
 		for i := 1; i < len(siblings); i++ {
 			l, r := at[siblings[i-1]], at[siblings[i]]
-			onPath := row == 0 && target >= 0 && i > min(k, target) && i <= max(k, target)
+			onPath := k >= 0 && target >= 0 && i > min(k, target) && i <= max(k, target)
 			add(onPath, func(thick int) []image.Rectangle {
 				y := l.Min.Y + l.Dy()/2 - thick/2
 				return []image.Rectangle{image.Rect(l.Max.X, y, r.Min.X, y+thick)}

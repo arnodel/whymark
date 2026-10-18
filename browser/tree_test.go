@@ -373,3 +373,31 @@ func TestTreePathUpAndAcross(t *testing.T) {
 		t.Errorf("the path shown is %v", on)
 	}
 }
+
+// TestTreeKeepsLastChild checks that going up keeps the row of children
+// lined up on the child the reader was on: the move is straight up.
+func TestTreeKeepsLastChild(t *testing.T) {
+	app, hall, lamp, shout := treeApp(t)
+	app.ShowTree()
+	press(app, "Left") // the lamp's page, beside the shout's
+	before, _ := app.treeRect(lamp)
+	press(app, "Up")
+	after, _ := app.treeRect(lamp)
+	if after.Min.X != before.Min.X {
+		t.Errorf("going up moved the lamp's page sideways, from x=%d to x=%d", before.Min.X, after.Min.X)
+	}
+	if child := app.tree.preferredChild(hall); child != lamp {
+		t.Errorf("Down from the hall selects %s, want %s, the page it was on", child, lamp)
+	}
+	// The way back goes down to the row of children and along it.
+	if on := app.shownPath(); len(on) != 2 || !on[hall] || !on[shout] {
+		t.Errorf("the path shown is %v", on)
+	}
+	if _, path := app.treeLines(app.shownFrames(time.Now())); len(path) != 4 {
+		t.Errorf("%d lines on the path, want 4: down, bent in three, and along", len(path))
+	}
+	press(app, "Down")
+	if app.tree.selected != lamp {
+		t.Errorf("Down selected %s, want %s", app.tree.selected, lamp)
+	}
+}
