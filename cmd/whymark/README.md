@@ -50,6 +50,9 @@ Linux, **Ctrl** takes the place of **Cmd**.
 | Zoom | **Cmd+=** / **Cmd+-** / **Cmd+0** (on the web, with Shift too, leaving Cmd alone to the web browser), or the actions page |
 | Table of contents | **Cmd+T**, or the toolbar; **Esc** closes it |
 | Journal mode: the pages visited, above the current one | **Cmd+J** |
+| The tree of a whymark document's pages: the current one's parent, siblings and children | **Cmd+G**, or the toolbar; the arrows move, **Enter** or a click on the middle page opens it, **Esc** closes; **Back** / **Forward** undo and redo moves |
+| The map of the whole tree, in the tree's corner | **M**, or a click on it, expands it; the wheel or a drag pans it, **Cmd+wheel** or **Cmd+=** / **Cmd+-** zooms it; a click on a dot picks a page |
+| Turn experiments on or off: features being tried out | the actions page, or **1** to **6** in the tree |
 | Light / dark theme | **Cmd+Shift+L**, the actions page, or start with `-light` |
 | Only open local files beneath a directory | start with `-root dir` |
 | Let documents from the web use the AI | start with `-remote-ai` |
@@ -66,8 +69,8 @@ Linux, **Ctrl** takes the place of **Cmd**.
 ## Documents that run
 
 A **whymark** document is Markdown whose front matter says so: passages, with Lua in them,
-that make a page at a time as you follow links. The viewer shows its pages, and journal mode
-shows how you got to one. A page can ask for text: a strip below it opens a field (Enter
+that make a page at a time as you follow links. The viewer shows its pages, journal mode
+shows how you got to one, and the tree of pages every turn taken from it. A page can ask for text: a strip below it opens a field (Enter
 sends). Try [the cellar](../../examples/cellar.md),
 [the clockmaker's shop](../../examples/clockmaker.md),
 [the notebook](../../examples/notebook.md), [a chat with an AI](../../examples/chat.md) or
