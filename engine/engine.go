@@ -1,4 +1,4 @@
-package whymark
+package engine
 
 import (
 	"bytes"
@@ -6,8 +6,8 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base32"
-	"errors"
 	"fmt"
+	"github.com/arnodel/whymark"
 	"hash/fnv"
 	"io"
 	"log"
@@ -20,7 +20,7 @@ import (
 	"github.com/arnodel/golua/code"
 	rt "github.com/arnodel/golua/runtime"
 
-	"github.com/arnodel/whymark/internal/whymark/compile"
+	"github.com/arnodel/whymark/engine/compile"
 	"github.com/arnodel/whynot/fetch"
 )
 
@@ -53,7 +53,7 @@ type snapshot struct {
 	// request is the request the page answered, and parent the page it
 	// came from (its FromPageID), "" for a document's start: together,
 	// pages make a tree of what a reader did.
-	request Request
+	request whymark.Request
 	parent  string
 	// time is when the page was made (turn.time).
 	time time.Time
@@ -72,13 +72,16 @@ type compiled struct {
 
 // Turn takes a turn: it runs the document at req.Location, from the page
 // req.FromPageID if set, and returns the page as it's written, its header
-// first (see ReadHeader), then its Markdown. Closing the page, or
+// first (see whymark.ReadHeader), then its Markdown. Closing the page, or
 // cancelling ctx, stops the turn.
 //
 // A document that fails, at compiling or running, still gives a page: one
 // with an error message, whose page-id keeps the state it started from.
 // NewEngine returns an Engine fetching documents, and their Lua modules,
 // from registry.
+// The Engine is what a browser talks to.
+var _ whymark.Engine = (*Engine)(nil)
+
 func NewEngine(registry *fetch.Registry, options ...Option) *Engine {
 	e := &Engine{registry: registry, capabilities: map[string]Capability{}, clock: time.Now}
 	for _, o := range options {
@@ -126,7 +129,7 @@ func WithGrant(grant func(document *url.URL, name string) bool) Option {
 
 // An error means there's no page at all: the document can't be fetched,
 // isn't a whymark document, or req.FromPageID isn't one of its pages.
-func (e *Engine) Turn(ctx context.Context, req Request) (io.ReadCloser, error) {
+func (e *Engine) Turn(ctx context.Context, req whymark.Request) (io.ReadCloser, error) {
 	document := documentURL(req.Location)
 	source, err := e.fetch(ctx, &document)
 	if err != nil {
@@ -177,7 +180,7 @@ func (e *Engine) Turn(ctx context.Context, req Request) (io.ReadCloser, error) {
 	out := io.MultiWriter(pw, &snap.output)
 	p := &page{
 		w:       out,
-		header:  Header{Location: req.Location, PageID: id, Journal: c.settings.Journal, Resume: c.settings.Resume},
+		header:  whymark.Header{Location: req.Location, PageID: id, Journal: c.settings.Journal, Resume: c.settings.Resume},
 		auto:    c.err != nil || len(c.program.Passages) > 0,
 		program: c.program,
 	}
@@ -387,25 +390,18 @@ func (e *Engine) Visit(id string) error {
 	return nil
 }
 
-// DocumentOf returns the name a document's pages are kept under (see
-// Engine.Pages): its location, with no query or fragment.
-func DocumentOf(location *url.URL) string {
-	u := documentURL(location)
-	return u.String()
-}
-
 func documentURL(location *url.URL) url.URL {
 	u := *location
 	u.RawQuery, u.ForceQuery, u.Fragment, u.RawFragment = "", false, "", ""
 	return u
 }
 
-// Pages lists the pages of document (see DocumentOf), by
+// Pages lists the pages of document (see whymark.DocumentOf), by
 // when they were made: those in the engine's Store, if it can list them
 // (see PageLister), and those this engine made that it hasn't saved, once
 // their turn is over.
-func (e *Engine) Pages(document string) ([]PageInfo, error) {
-	var pages []PageInfo
+func (e *Engine) Pages(document whymark.Document) ([]whymark.PageInfo, error) {
+	var pages []whymark.PageInfo
 	seen := map[string]bool{}
 	if lister, ok := e.store.(PageLister); ok {
 		stored, err := lister.Pages(document)
@@ -424,8 +420,8 @@ func (e *Engine) Pages(document string) ([]PageInfo, error) {
 		default:
 			continue // its turn is still setting it
 		}
-		if snap.document == document && !seen[id] {
-			pages = append(pages, PageInfo{ID: id, Parent: snap.parent, Passage: snap.passage, Time: snap.time})
+		if snap.document == string(document) && !seen[id] {
+			pages = append(pages, whymark.PageInfo{ID: id, Parent: snap.parent, Passage: snap.passage, Time: snap.time})
 		}
 	}
 	e.mu.Unlock()
@@ -433,20 +429,16 @@ func (e *Engine) Pages(document string) ([]PageInfo, error) {
 	return pages, nil
 }
 
-// ErrNoOutput is Saved's error for a page whose output wasn't kept, such
-// as one saved by an earlier version: it can still be continued from.
-var ErrNoOutput = errors.New("the page's output wasn't kept")
-
 // Saved returns the page id as its turn wrote it, header and all, as Turn
 // returns pages, and the request it answered: to show it again, rather
 // than make a new page from it. It waits for the page's turn to be over.
-func (e *Engine) Saved(ctx context.Context, id string) (io.ReadCloser, Request, error) {
+func (e *Engine) Saved(ctx context.Context, id string) (io.ReadCloser, whymark.Request, error) {
 	snap, err := e.page(ctx, id)
 	if err != nil {
-		return nil, Request{}, err
+		return nil, whymark.Request{}, err
 	}
 	if snap.output.Len() == 0 {
-		return nil, Request{}, ErrNoOutput
+		return nil, whymark.Request{}, whymark.ErrNoOutput
 	}
 	return io.NopCloser(bytes.NewReader(snap.output.Bytes())), snap.request, nil
 }

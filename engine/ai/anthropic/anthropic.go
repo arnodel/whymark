@@ -10,7 +10,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
 
-	"github.com/arnodel/whymark/internal/whymark/ai"
+	"github.com/arnodel/whymark/engine/ai"
 )
 
 // Models maps the tiers whymark documents ask for to Claude models, for

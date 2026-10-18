@@ -16,7 +16,7 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 
-	"github.com/arnodel/whymark/internal/browser"
+	"github.com/arnodel/whymark/browser"
 	"github.com/arnodel/whynot/backends/giobackend"
 	"github.com/arnodel/whynot/fonts"
 )

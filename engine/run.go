@@ -1,8 +1,9 @@
-package whymark
+package engine
 
 import (
 	"errors"
 	"fmt"
+	"github.com/arnodel/whymark"
 	"io"
 	"strings"
 	"time"
@@ -17,7 +18,7 @@ import (
 	"github.com/arnodel/golua/lib/utf8lib"
 	rt "github.com/arnodel/golua/runtime"
 
-	"github.com/arnodel/whymark/internal/whymark/compile"
+	"github.com/arnodel/whymark/engine/compile"
 )
 
 const (
@@ -58,7 +59,7 @@ end
 // script's request or before its first output, then its Markdown.
 type page struct {
 	w      io.Writer
-	header Header
+	header whymark.Header
 	// auto is whether the first output sends the header, as for a
 	// document with passages; otherwise, writing first is an error.
 	auto bool
@@ -88,7 +89,7 @@ func (p *page) send(passage, title string) error {
 		}
 	}
 	p.header.Title = title
-	return writeHeader(p.w, p.header)
+	return whymark.WriteHeader(p.w, p.header)
 }
 
 // write writes s, after the header and the passage's heading. Before the

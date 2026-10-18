@@ -41,7 +41,7 @@ import (
 
 	rt "github.com/arnodel/golua/runtime"
 
-	"github.com/arnodel/whymark/internal/whymark"
+	"github.com/arnodel/whymark/engine"
 )
 
 // A Provider answers requests: an AI, reached through its API, or a test's
@@ -107,13 +107,13 @@ type AI struct {
 	answers map[[sha256.Size]byte]string
 }
 
-var _ whymark.Capability = (*AI)(nil)
+var _ engine.Capability = (*AI)(nil)
 
 // Name is "ai".
 func (a *AI) Name() string { return "ai" }
 
 // Module makes the ai module for a turn.
-func (a *AI) Module(tc *whymark.TurnContext) (rt.Value, error) {
+func (a *AI) Module(tc *engine.TurnContext) (rt.Value, error) {
 	m := rt.NewTable()
 	meta := rt.NewTable()
 	calls := 0 // this turn's, for recording answers by the page and call
@@ -157,7 +157,7 @@ func (a *AI) Module(tc *whymark.TurnContext) (rt.Value, error) {
 	}, "__block", 3, false)
 	// They charge the turn for the answers they return, and reach no
 	// files; asking the provider is the host's to allow (see
-	// whymark.Capability).
+	// engine.Capability).
 	rt.SolemnlyDeclareCompliance(rt.ComplyCpuSafe|rt.ComplyMemSafe|rt.ComplyIoSafe, ask, write, block)
 	meta.Set(rt.StringValue("__call"), rt.FunctionValue(ask))
 	m.Set(rt.StringValue("write"), rt.FunctionValue(write))
@@ -168,7 +168,7 @@ func (a *AI) Module(tc *whymark.TurnContext) (rt.Value, error) {
 
 // ask answers a call, spec, of the module m in the turn tc, the n-th of
 // the turn, writing the answer into the page if write is set.
-func (a *AI) ask(tc *whymark.TurnContext, m, spec *rt.Table, write bool, n int) (rt.Value, error) {
+func (a *AI) ask(tc *engine.TurnContext, m, spec *rt.Table, write bool, n int) (rt.Value, error) {
 	name := "ai"
 	if write {
 		name = "ai.write"
@@ -313,7 +313,7 @@ func field(t *rt.Table, name string) string {
 // answerKey is what an answer is recorded by: the document and the call,
 // with the author's key if there's one, else the page and the call's
 // place among the page's.
-func answerKey(tc *whymark.TurnContext, req Request, userKey string, n int) [sha256.Size]byte {
+func answerKey(tc *engine.TurnContext, req Request, userKey string, n int) [sha256.Size]byte {
 	k := struct {
 		Document, Key, Page string
 		Call                int

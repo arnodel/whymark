@@ -3,11 +3,10 @@
 package browser
 
 import (
+	"github.com/arnodel/whymark"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/arnodel/whymark/internal/whymark"
 )
 
 // TestResume checks persistence across sessions: a document asking to be

@@ -5,7 +5,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
-	"github.com/arnodel/whymark/internal/browser"
+	"github.com/arnodel/whymark/browser"
 )
 
 // toEbitenIcon converts one of browser's shared, backend-agnostic

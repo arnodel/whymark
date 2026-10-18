@@ -6,13 +6,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/arnodel/whymark"
 	"io"
 	"log"
 	"strings"
 	"time"
 
-	"github.com/arnodel/whymark/internal/whymark"
-	"github.com/arnodel/whymark/internal/whymark/compile"
+	"github.com/arnodel/whymark/engine/compile"
 	"github.com/arnodel/whynot"
 )
 

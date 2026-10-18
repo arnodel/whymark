@@ -1,9 +1,10 @@
-package whymark
+package engine
 
 import (
 	"bufio"
 	"context"
 	"crypto/sha256"
+	"github.com/arnodel/whymark"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -17,7 +18,7 @@ import (
 
 	rt "github.com/arnodel/golua/runtime"
 
-	"github.com/arnodel/whymark/internal/whymark/compile"
+	"github.com/arnodel/whymark/engine/compile"
 	"github.com/arnodel/whynot/fetch"
 )
 
@@ -89,12 +90,12 @@ func testEngine(t *testing.T, files map[string]string, options ...Option) (*Engi
 
 // turned is a page, as a user agent reads it.
 type turned struct {
-	Header
+	whymark.Header
 	body string
 }
 
 // take takes a turn, and reads its page.
-func take(t *testing.T, e *Engine, req Request) turned {
+func take(t *testing.T, e *Engine, req whymark.Request) turned {
 	t.Helper()
 	r, err := e.Turn(context.Background(), req)
 	if err != nil {
@@ -102,7 +103,7 @@ func take(t *testing.T, e *Engine, req Request) turned {
 	}
 	defer r.Close()
 	br := bufio.NewReader(r)
-	h, err := ReadHeader(br)
+	h, err := whymark.ReadHeader(br)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +117,7 @@ func take(t *testing.T, e *Engine, req Request) turned {
 // follow takes the turn for the link, as written, on page p.
 func follow(t *testing.T, e *Engine, p turned, link string) turned {
 	t.Helper()
-	req, ok := Follow(p.Header, link)
+	req, ok := whymark.Follow(p.Header, link)
 	if !ok {
 		t.Fatalf("%s doesn't continue the trail", link)
 	}
@@ -142,7 +143,7 @@ func wants(t *testing.T, what string, p turned, want []string, wantNot []string)
 // an earlier page.
 func TestWalkthrough(t *testing.T) {
 	e, file := testEngine(t, map[string]string{"cellar.md": cellar})
-	hall := take(t, e, Request{Location: file("cellar.md")})
+	hall := take(t, e, whymark.Request{Location: file("cellar.md")})
 	if hall.Location.Fragment != "hall" || hall.Title != "Hall" || !hall.Journal || hall.PageID == "" {
 		t.Errorf("the first page's header is %+v, want the hall, titled Hall, with the journal hint and a page-id", hall.Header)
 	}
@@ -175,7 +176,7 @@ func TestWalkthrough(t *testing.T) {
 // passage, and that a passage link drops the query.
 func TestQueryStaysOnPassage(t *testing.T) {
 	e, file := testEngine(t, map[string]string{"cellar.md": cellar})
-	hall := take(t, e, Request{Location: file("cellar.md")})
+	hall := take(t, e, whymark.Request{Location: file("cellar.md")})
 	shout := follow(t, e, hall, "?shout=yes")
 	if shout.Location.Fragment != "hall" {
 		t.Errorf("a query link went to %q, want the hall", shout.Location.Fragment)
@@ -190,7 +191,7 @@ func TestQueryStaysOnPassage(t *testing.T) {
 // TestFollow checks which links continue the trail.
 func TestFollow(t *testing.T) {
 	location, _ := url.Parse("file:///docs/cellar.md?shout=yes#hall")
-	h := Header{Location: location, PageID: "7"}
+	h := whymark.Header{Location: location, PageID: "7"}
 	for _, c := range []struct {
 		link, want string
 		ok         bool
@@ -200,9 +201,9 @@ func TestFollow(t *testing.T) {
 		{"cellar.md", "", false},
 		{"https://example.com", "", false},
 	} {
-		req, ok := Follow(h, c.link)
+		req, ok := whymark.Follow(h, c.link)
 		if ok != c.ok || ok && (req.Location.String() != c.want || req.FromPageID != "7") {
-			t.Errorf("Follow(%q) = %v, %v, want %s, %v", c.link, req, ok, c.want, c.ok)
+			t.Errorf("whymark.Follow(%q) = %v, %v, want %s, %v", c.link, req, ok, c.want, c.ok)
 		}
 	}
 }
@@ -215,7 +216,7 @@ func TestGoAndShow(t *testing.T) {
 		"# (Take)\n\n```lua\nturn.state.key = true\nturn.go(\"room\")\n```\n\nNever shown.\n\n" +
 		"# (Inventory)\n\nYou carry `= turn.state.key and \"a key\" or \"nothing\"`.\n"
 	e, file := testEngine(t, map[string]string{"room.md": doc})
-	room := take(t, e, Request{Location: file("room.md")})
+	room := take(t, e, whymark.Request{Location: file("room.md")})
 	wants(t, "the room", room, []string{"# Room", "You carry nothing."}, []string{"Inventory"})
 	took := follow(t, e, room, "#take")
 	if took.Location.Fragment != "room" || took.Title != "Room" {
@@ -236,7 +237,7 @@ func TestCodeDocument(t *testing.T) {
 		"end\n```\n"
 	bad := "---\ntitle: Hasty\nwhymark:\n  version: 1\n---\n\n```lua\nfunction page(turn) turn.write(\"too soon\") end\n```\n"
 	e, file := testEngine(t, map[string]string{"good.md": good, "bad.md": bad})
-	first := take(t, e, Request{Location: file("good.md")})
+	first := take(t, e, whymark.Request{Location: file("good.md")})
 	if first.Title != "Count 0" {
 		t.Errorf("the title is %q, want what write_headers set", first.Title)
 	}
@@ -244,7 +245,7 @@ func TestCodeDocument(t *testing.T) {
 	second := follow(t, e, first, "?add=1")
 	wants(t, "after adding one", second, []string{"The count is 1."}, nil)
 
-	hasty := take(t, e, Request{Location: file("bad.md")})
+	hasty := take(t, e, whymark.Request{Location: file("bad.md")})
 	if hasty.Title != "Hasty" {
 		t.Errorf("a failed page's title is %q, want the document's", hasty.Title)
 	}
@@ -258,7 +259,7 @@ func TestFailedTurnKeepsState(t *testing.T) {
 		"# Start\n\nCoins: `= turn.state.coins or 0`. [Spend](#spend)\n\n" +
 		"# Spend\n\n```lua\nturn.state.coins = 99\nerror(\"the till is broken\")\n```\n"
 	e, file := testEngine(t, map[string]string{"shop.md": doc})
-	start := take(t, e, Request{Location: file("shop.md")})
+	start := take(t, e, whymark.Request{Location: file("shop.md")})
 	spent := follow(t, e, start, "#spend")
 	wants(t, "the failed turn", spent, []string{"The page stopped", "the till is broken"}, nil)
 	back := follow(t, e, spent, "#start")
@@ -269,8 +270,8 @@ func TestFailedTurnKeepsState(t *testing.T) {
 func TestInput(t *testing.T) {
 	doc := "---\nwhymark:\n  version: 1\n---\n# Chat\n\nYou said: `= turn.input.say or \"nothing\"`.\n"
 	e, file := testEngine(t, map[string]string{"chat.md": doc})
-	first := take(t, e, Request{Location: file("chat.md")})
-	req, _ := Follow(first.Header, "#chat")
+	first := take(t, e, whymark.Request{Location: file("chat.md")})
+	req, _ := whymark.Follow(first.Header, "#chat")
 	req.Input = map[string]string{"say": "hello"}
 	wants(t, "after typing", take(t, e, req), []string{"You said: hello."}, nil)
 }
@@ -285,30 +286,30 @@ func TestDocumentErrors(t *testing.T) {
 		"broken.md":  "---\nwhymark:\n  version: 1\n---\n# Hall\n\n`if then`\n",
 		"nowhere.md": "---\nwhymark:\n  version: 1\n---\nJust prose, and no page(turn).\n",
 	})
-	if _, err := e.Turn(context.Background(), Request{Location: file("plain.md")}); err == nil {
+	if _, err := e.Turn(context.Background(), whymark.Request{Location: file("plain.md")}); err == nil {
 		t.Error("a plain Markdown file made a page")
 	}
-	hall := take(t, e, Request{Location: file("cellar.md")})
+	hall := take(t, e, whymark.Request{Location: file("cellar.md")})
 	other := file("future.md")
-	if _, err := e.Turn(context.Background(), Request{Location: other, FromPageID: hall.PageID}); err == nil {
+	if _, err := e.Turn(context.Background(), whymark.Request{Location: other, FromPageID: hall.PageID}); err == nil {
 		t.Error("a page of one document continued another")
 	}
-	if _, err := e.Turn(context.Background(), Request{Location: file("cellar.md"), FromPageID: "nope"}); err == nil {
+	if _, err := e.Turn(context.Background(), whymark.Request{Location: file("cellar.md"), FromPageID: "nope"}); err == nil {
 		t.Error("an unknown page-id made a page")
 	}
 	missing := file("cellar.md")
 	missing.Fragment = "attic"
-	wants(t, "a missing passage", take(t, e, Request{Location: missing}), []string{"The page stopped", `no passage "attic"`}, nil)
-	wants(t, "a newer version", take(t, e, Request{Location: file("future.md")}), []string{"version 2"}, nil)
+	wants(t, "a missing passage", take(t, e, whymark.Request{Location: missing}), []string{"The page stopped", `no passage "attic"`}, nil)
+	wants(t, "a newer version", take(t, e, whymark.Request{Location: file("future.md")}), []string{"version 2"}, nil)
 	// Line 7 of the file, front matter included.
-	wants(t, "a syntax error", take(t, e, Request{Location: file("broken.md")}), []string{"The page stopped", "broken.md:7"}, nil)
-	wants(t, "no passages or page", take(t, e, Request{Location: file("nowhere.md")}), []string{"no passages, and defines no page(turn)"}, nil)
+	wants(t, "a syntax error", take(t, e, whymark.Request{Location: file("broken.md")}), []string{"The page stopped", "broken.md:7"}, nil)
+	wants(t, "no passages or page", take(t, e, whymark.Request{Location: file("nowhere.md")}), []string{"no passages, and defines no page(turn)"}, nil)
 }
 
 // TestSpecExample plays the document in the specification, whymark.md, so
 // that it stays true.
 func TestSpecExample(t *testing.T) {
-	spec, err := os.ReadFile("../../whymark.md")
+	spec, err := os.ReadFile("../whymark.md")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -318,7 +319,7 @@ func TestSpecExample(t *testing.T) {
 		t.Fatal("no example document in the specification")
 	}
 	e, file := testEngine(t, map[string]string{"cellar.md": doc})
-	hall := take(t, e, Request{Location: file("cellar.md")})
+	hall := take(t, e, whymark.Request{Location: file("cellar.md")})
 	wants(t, "the spec's hall", hall, []string{"# Hall", "It's dark below."}, []string{"Prose before"})
 	lamp := follow(t, e, hall, "#take-the-lamp")
 	wants(t, "the spec's lamp", lamp, []string{"You take the lamp"}, []string{"# Take"})
@@ -338,7 +339,7 @@ func TestRunProgram(t *testing.T) {
 		want string
 	}{{false, "pitch black"}, {true, "You win!"}} {
 		var out strings.Builder
-		p := &page{w: &out, header: Header{Location: location, PageID: "test"}, auto: true, program: prog}
+		p := &page{w: &out, header: whymark.Header{Location: location, PageID: "test"}, auto: true, program: prog}
 		state := &table{keys: []any{"lamp"}, values: []any{c.lamp}}
 		if _, err := run(prog, p, turnInput{state: state, passage: "cellar"}); err != nil {
 			t.Fatal(err)
@@ -359,8 +360,8 @@ func TestRandomPerPage(t *testing.T) {
 		"`math.randomseed(turn.state.seed)`\nThe story rolls `= math.random(1000000)`.\n" +
 		"`turn.state.seed = math.random(1 << 30)`\n[Again](?again=1)\n"
 	e, file := testEngine(t, map[string]string{"roll.md": doc})
-	first := take(t, e, Request{Location: file("roll.md")})
-	req, _ := Follow(first.Header, "?again=1")
+	first := take(t, e, whymark.Request{Location: file("roll.md")})
+	req, _ := whymark.Follow(first.Header, "?again=1")
 	a, b := take(t, e, req), take(t, e, req)
 	free := func(p turned) string { return strings.SplitN(p.body, "The story", 2)[0] }
 	story := func(p turned) string { return strings.SplitN(p.body, "The story", 2)[1] }
@@ -434,17 +435,17 @@ func TestCapabilities(t *testing.T) {
 	allow := true
 	e, file := testEngine(t, files, WithCapabilities(greeter{}), WithGrant(func(document *url.URL, name string) bool { return allow }))
 
-	wants(t, "granted", take(t, e, Request{Location: file("optional.md")}), []string{"Hello, reader!"}, nil)
-	wants(t, "required and granted", take(t, e, Request{Location: file("required.md")}), []string{"Hello, reader!"}, nil)
-	wants(t, "not declared", take(t, e, Request{Location: file("none.md")}), []string{"The page stopped", `require "greet"`}, []string{"Hello"})
+	wants(t, "granted", take(t, e, whymark.Request{Location: file("optional.md")}), []string{"Hello, reader!"}, nil)
+	wants(t, "required and granted", take(t, e, whymark.Request{Location: file("required.md")}), []string{"Hello, reader!"}, nil)
+	wants(t, "not declared", take(t, e, whymark.Request{Location: file("none.md")}), []string{"The page stopped", `require "greet"`}, []string{"Hello"})
 
 	allow = false
-	wants(t, "optional, not granted", take(t, e, Request{Location: file("optional.md")}), []string{"No greeting."}, []string{"Hello"})
-	wants(t, "required, not granted", take(t, e, Request{Location: file("required.md")}), []string{"The page stopped", "isn't allowed"}, []string{"Hello", "No greeting"})
+	wants(t, "optional, not granted", take(t, e, whymark.Request{Location: file("optional.md")}), []string{"No greeting."}, []string{"Hello"})
+	wants(t, "required, not granted", take(t, e, whymark.Request{Location: file("required.md")}), []string{"The page stopped", "isn't allowed"}, []string{"Hello", "No greeting"})
 
 	e, file = testEngine(t, files)
-	wants(t, "optional, not available", take(t, e, Request{Location: file("optional.md")}), []string{"No greeting."}, nil)
-	wants(t, "required, not available", take(t, e, Request{Location: file("required.md")}), []string{"The page stopped", "isn't available"}, nil)
+	wants(t, "optional, not available", take(t, e, whymark.Request{Location: file("optional.md")}), []string{"No greeting."}, nil)
+	wants(t, "required, not available", take(t, e, whymark.Request{Location: file("required.md")}), []string{"The page stopped", "isn't available"}, nil)
 }
 
 // TestCapabilityBlocks checks blocks named after a capability: their text,
@@ -461,11 +462,11 @@ func TestCapabilityBlocks(t *testing.T) {
 	}
 	allow := true
 	e, file := testEngine(t, files, WithCapabilities(greeter{}), WithGrant(func(*url.URL, string) bool { return allow }))
-	wants(t, "with the capability", take(t, e, Request{Location: file("blocks.md")}), []string{"Before.\n\n[loud warm] One 2\n", "After."}, []string{"No greeter", "```"})
-	wants(t, "undeclared", take(t, e, Request{Location: file("plain.md")}), []string{"```greet loud warm\nOne `= 1 + 1`\n```", "```without greet\nNo greeter.\n```"}, nil)
-	wants(t, "no __block", take(t, e, Request{Location: file("nothing.md")}), []string{"The page stopped", "mean nothing"}, nil)
+	wants(t, "with the capability", take(t, e, whymark.Request{Location: file("blocks.md")}), []string{"Before.\n\n[loud warm] One 2\n", "After."}, []string{"No greeter", "```"})
+	wants(t, "undeclared", take(t, e, whymark.Request{Location: file("plain.md")}), []string{"```greet loud warm\nOne `= 1 + 1`\n```", "```without greet\nNo greeter.\n```"}, nil)
+	wants(t, "no __block", take(t, e, whymark.Request{Location: file("nothing.md")}), []string{"The page stopped", "mean nothing"}, nil)
 	allow = false
-	wants(t, "without the capability", take(t, e, Request{Location: file("blocks.md")}), []string{"Before.\n\nNo greeter.\n\nAfter."}, []string{"loud", "One"})
+	wants(t, "without the capability", take(t, e, whymark.Request{Location: file("blocks.md")}), []string{"Before.\n\nNo greeter.\n\nAfter."}, []string{"loud", "One"})
 }
 
 // TestModules checks the document's own Lua modules: one next to the
@@ -479,9 +480,9 @@ func TestModules(t *testing.T) {
 		"missing.md":  "---\nwhymark:\n  version: 1\n---\n# Start\n\n`require \"nowhere\"`\n",
 		"badname.md":  "---\nwhymark:\n  version: 1\n---\n# Start\n\n`require \"/etc/passwd\"`\n",
 	})
-	wants(t, "a module", take(t, e, Request{Location: file("story.md")}), []string{"HELLO! (loaded 1 time)"}, nil)
-	wants(t, "a missing module", take(t, e, Request{Location: file("missing.md")}), []string{"The page stopped", `require "nowhere"`}, nil)
-	wants(t, "a bad module name", take(t, e, Request{Location: file("badname.md")}), []string{"The page stopped", "relative to the document"}, nil)
+	wants(t, "a module", take(t, e, whymark.Request{Location: file("story.md")}), []string{"HELLO! (loaded 1 time)"}, nil)
+	wants(t, "a missing module", take(t, e, whymark.Request{Location: file("missing.md")}), []string{"The page stopped", `require "nowhere"`}, nil)
+	wants(t, "a bad module name", take(t, e, whymark.Request{Location: file("badname.md")}), []string{"The page stopped", "relative to the document"}, nil)
 }
 
 // TestNoFileAccess checks that the sandbox has none of golua's functions
@@ -491,7 +492,7 @@ func TestNoFileAccess(t *testing.T) {
 		"files.md": "---\nwhymark:\n  version: 1\n---\n# Files\n\n" +
 			"`= tostring(dofile) .. tostring(loadfile) .. tostring(io) .. tostring(os) .. tostring(package)`\n",
 	})
-	wants(t, "the sandbox", take(t, e, Request{Location: file("files.md")}), []string{"nilnilnilnilnil"}, nil)
+	wants(t, "the sandbox", take(t, e, whymark.Request{Location: file("files.md")}), []string{"nilnilnilnilnil"}, nil)
 }
 
 // TestModulesStayBelow checks that a document's modules are at or below
@@ -508,12 +509,12 @@ func TestModulesStayBelow(t *testing.T) {
 		"story/above.md":   doc("../secret"),
 		"story/linked.md":  doc("linked"),
 	})
-	wants(t, "a module below", take(t, e, Request{Location: file("story/below.md")}), []string{"fine"}, []string{"The page stopped"})
-	wants(t, "a module above", take(t, e, Request{Location: file("story/above.md")}), []string{"The page stopped", "at or below"}, []string{"the secret"})
+	wants(t, "a module below", take(t, e, whymark.Request{Location: file("story/below.md")}), []string{"fine"}, []string{"The page stopped"})
+	wants(t, "a module above", take(t, e, whymark.Request{Location: file("story/above.md")}), []string{"The page stopped", "at or below"}, []string{"the secret"})
 	if err := os.Symlink(filepath.FromSlash(file("secret.lua").Path), filepath.FromSlash(file("story/linked.lua").Path)); err != nil {
 		t.Skip("no symbolic links here:", err)
 	}
-	wants(t, "a link out", take(t, e, Request{Location: file("story/linked.md")}), []string{"The page stopped", `require "linked"`}, []string{"the secret"})
+	wants(t, "a link out", take(t, e, whymark.Request{Location: file("story/linked.md")}), []string{"The page stopped", `require "linked"`}, []string{"the secret"})
 }
 
 // TestRemoteModules checks a remote document's modules: fetched from
@@ -535,15 +536,15 @@ func TestRemoteModules(t *testing.T) {
 	defer server.Close()
 	e := NewEngine(fetch.NewRegistry(fetch.HTTPResolver{AllowHTTP: true}))
 	location, _ := url.Parse(server.URL + "/stories/story.md")
-	wants(t, "a module below", take(t, e, Request{Location: location}), []string{"fine"}, []string{"The page stopped"})
+	wants(t, "a module below", take(t, e, whymark.Request{Location: location}), []string{"fine"}, []string{"The page stopped"})
 	location, _ = url.Parse(server.URL + "/stories/story.md?up=yes")
-	wants(t, "a module above", take(t, e, Request{Location: location}), []string{"The page stopped", "at or below"}, []string{"the secret"})
+	wants(t, "a module above", take(t, e, whymark.Request{Location: location}), []string{"The page stopped", "at or below"}, []string{"the secret"})
 }
 
 // TestExamples plays the browser's example documents, in examples/.
 func TestExamples(t *testing.T) {
 	read := func(name string) string {
-		data, err := os.ReadFile("../../examples/" + name)
+		data, err := os.ReadFile("../examples/" + name)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -552,11 +553,11 @@ func TestExamples(t *testing.T) {
 	e, file := testEngine(t, map[string]string{"cellar.md": read("cellar.md"), "clockmaker.md": read("clockmaker.md"), "notebook.md": read("notebook.md"), "chat.md": read("chat.md"),
 		"lib/dice.lua": read("lib/dice.lua"), "lib/story.lua": read("lib/story.lua")})
 
-	hall := take(t, e, Request{Location: file("cellar.md")})
+	hall := take(t, e, whymark.Request{Location: file("cellar.md")})
 	won := follow(t, e, follow(t, e, follow(t, e, hall, "#take-the-lamp"), "#hall"), "#cellar")
 	wants(t, "the cellar example", won, []string{"You win!"}, []string{"The page stopped"})
 
-	shop := take(t, e, Request{Location: file("clockmaker.md")})
+	shop := take(t, e, whymark.Request{Location: file("clockmaker.md")})
 	wants(t, "the shop", shop, []string{"Every clock in the shop has stopped", "10 minutes to midnight"}, []string{"The page stopped", "Describe the shop"})
 	page := shop
 	for range 5 {
@@ -577,11 +578,11 @@ func TestExamples(t *testing.T) {
 
 	// The notebook: what's written on each page, walking back.
 	write := func(p turned, text string) turned {
-		req, _ := Follow(p.Header, "?")
+		req, _ := whymark.Follow(p.Header, "?")
 		req.Input = map[string]string{"entry": text}
 		return take(t, e, req)
 	}
-	empty := take(t, e, Request{Location: file("notebook.md")})
+	empty := take(t, e, whymark.Request{Location: file("notebook.md")})
 	wants(t, "the empty notebook", empty, []string{"Nothing written yet.", "```input entry"}, nil)
 	two := write(write(empty, "eggs"), "milk")
 	wants(t, "two entries", two, []string{"1. eggs", "2. milk"}, []string{"Nothing written"})
@@ -589,9 +590,9 @@ func TestExamples(t *testing.T) {
 	wants(t, "another notebook, from the start", other, []string{"1. tea"}, []string{"eggs"})
 
 	// The chat, here without an AI (see package ai's tests for one).
-	chat := take(t, e, Request{Location: file("chat.md")})
+	chat := take(t, e, whymark.Request{Location: file("chat.md")})
 	wants(t, "the chat", chat, []string{"Say something to start.", "needs an AI", "give whymark an API key"}, []string{"The page stopped"})
-	req, _ := Follow(chat.Header, "?")
+	req, _ := whymark.Follow(chat.Header, "?")
 	req.Input = map[string]string{"say": "Hello"}
 	wants(t, "the chat, saying something", take(t, e, req), []string{"needs an AI"}, []string{"The page stopped", "You:"})
 }
@@ -600,7 +601,7 @@ func TestExamples(t *testing.T) {
 // sibling pages and move on with the trail, free rolls differ, a fixed
 // roll leaves later free rolls free, and rolls are within their range.
 func TestLibDice(t *testing.T) {
-	dice, err := os.ReadFile("../../examples/lib/dice.lua")
+	dice, err := os.ReadFile("../examples/lib/dice.lua")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -624,7 +625,7 @@ func TestLibDice(t *testing.T) {
 		}
 		return m[1], m[2]
 	}
-	start := take(t, e, Request{Location: file("rolls.md")})
+	start := take(t, e, whymark.Request{Location: file("rolls.md")})
 	wants(t, "the ranges", start, []string{"ranges true"}, []string{"The page stopped"})
 	a, b := follow(t, e, start, "?"), follow(t, e, start, "?")
 	fixedA, freeA := parse(a)
@@ -638,7 +639,7 @@ func TestLibDice(t *testing.T) {
 	if fixedNext, _ := parse(follow(t, e, a, "?")); fixedNext == fixedA {
 		t.Errorf("the next page's fixed rolls are the same as its parent's: %s", fixedNext)
 	}
-	wants(t, "a bad roll", take(t, e, Request{Location: file("bad.md")}), []string{"The page stopped", "not a roll: 2x6"}, nil)
+	wants(t, "a bad roll", take(t, e, whymark.Request{Location: file("bad.md")}), []string{"The page stopped", "not a roll: 2x6"}, nil)
 }
 
 // TestTurnTime checks turn.time: when the page was made, by the engine's
@@ -653,7 +654,7 @@ func TestTurnTime(t *testing.T) {
 			"now `= t.year`-`= t.month`-`= t.day` `= t.hour`:`= t.min`:`= t.sec` wday `= t.wday` yday `= t.yday` iso `= t.iso`\n\n" +
 			"`if turn.previous then`\nbefore `= turn.previous.time.iso`\n`end`\n",
 	}, WithClock(func() time.Time { return now }))
-	first := take(t, e, Request{Location: file("time.md")})
+	first := take(t, e, whymark.Request{Location: file("time.md")})
 	wants(t, "the first page", first, []string{"now 2026-10-16 9:12:5 wday 6 yday 289 iso 2026-10-16T09:12:05+01:00"}, []string{"before", "The page stopped"})
 	now = now.Add(26 * time.Hour)
 	second := follow(t, e, first, "?")
@@ -665,7 +666,7 @@ func TestTurnTime(t *testing.T) {
 // when things are due, urgent ones first, and what couldn't be done.
 func TestTodoExample(t *testing.T) {
 	read := func(name string) string {
-		data, err := os.ReadFile("../../examples/" + name)
+		data, err := os.ReadFile("../examples/" + name)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -674,11 +675,11 @@ func TestTodoExample(t *testing.T) {
 	now := time.Date(2026, 10, 16, 9, 0, 0, 0, time.UTC) // a Friday
 	e, file := testEngine(t, map[string]string{"todo.md": read("todo.md"), "lib/dates.lua": read("lib/dates.lua")},
 		WithClock(func() time.Time { return now }))
-	page := take(t, e, Request{Location: file("todo.md")})
+	page := take(t, e, whymark.Request{Location: file("todo.md")})
 	wants(t, "the empty list", page, []string{"Nothing to do yet.", "use commands"}, []string{"The page stopped"})
 	say := func(text string) {
 		t.Helper()
-		req, _ := Follow(page.Header, "?")
+		req, _ := whymark.Follow(page.Header, "?")
 		req.Input = map[string]string{"say": text}
 		page = take(t, e, req)
 	}
@@ -709,7 +710,7 @@ func TestTodoExample(t *testing.T) {
 // from, and the request it answered.
 func TestSnapshotParents(t *testing.T) {
 	e, file := testEngine(t, map[string]string{"cellar.md": cellar})
-	hall := take(t, e, Request{Location: file("cellar.md")})
+	hall := take(t, e, whymark.Request{Location: file("cellar.md")})
 	lamp := follow(t, e, hall, "#take-the-lamp")
 	dark := follow(t, e, hall, "#cellar")
 	for _, c := range []struct {
@@ -739,10 +740,10 @@ func TestPrevious(t *testing.T) {
 		"`end`\n\n" +
 		"Score `= turn.state.score`. [Add two](?add=2) [Add three](?add=3)\n"
 	e, file := testEngine(t, map[string]string{"play.md": doc})
-	first := take(t, e, Request{Location: file("play.md")})
+	first := take(t, e, whymark.Request{Location: file("play.md")})
 	wants(t, "the first page", first, []string{"Score 0."}, []string{"- page"})
 
-	req, _ := Follow(first.Header, "?add=2")
+	req, _ := whymark.Follow(first.Header, "?add=2")
 	req.Input = map[string]string{"say": "hi"}
 	second := take(t, e, req)
 	third := follow(t, e, second, "?add=3")

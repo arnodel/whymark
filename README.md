@@ -28,9 +28,11 @@ See [the viewer's README](cmd/whymark) for what it can do, and the keys.
 
 ## How it's organized
 
-- [`internal/whymark`](internal/whymark) is the engine: it compiles whymark documents and runs
+- The root package, `whymark`, is the protocol between an engine and a browser: requests,
+  pages and their headers, documents.
+- [`engine`](engine) is the engine: it compiles whymark documents and runs
   them, turning a request (a document, a passage, input) into a page, and keeps pages.
-- [`internal/browser`](internal/browser) is the browser: everything the viewers share, from
+- [`browser`](browser) is the browser: everything the viewers share, from
   navigation and history to the journal, selection and the prompt.
 - [`cmd`](cmd) has the viewers, which wire the two together.
 

@@ -1,8 +1,9 @@
 //go:build !js
 
-package whymark
+package engine
 
 import (
+	"github.com/arnodel/whymark"
 	"path/filepath"
 	"testing"
 	"time"
@@ -31,11 +32,11 @@ func TestEnginePages(t *testing.T) {
 	files := map[string]string{"cave.md": "---\nwhymark:\n  version: 1\n---\n# Entrance\n\n[In](#hall)\n\n# Hall\n\n[Out](#entrance)\n"}
 	store := newSQLiteStore(t)
 	e, file := testEngine(t, files, WithStore(store))
-	start := take(t, e, Request{Location: file("cave.md")})
+	start := take(t, e, whymark.Request{Location: file("cave.md")})
 	hall := follow(t, e, start, "#hall")
 	again := follow(t, e, start, "#hall") // a sibling of hall
 
-	document := DocumentOf(file("cave.md"))
+	document := whymark.DocumentOf(file("cave.md"))
 	for _, engine := range []*Engine{e, newEngineOn(t, store)} {
 		pages, err := engine.Pages(document)
 		if err != nil {

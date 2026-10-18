@@ -53,8 +53,8 @@ type header struct {
 	Resume   bool   `yaml:"resume,omitempty"`
 }
 
-// writeHeader writes h to w as a page's front matter.
-func writeHeader(w io.Writer, h Header) error {
+// WriteHeader writes h to w as a page's front matter.
+func WriteHeader(w io.Writer, h Header) error {
 	data, err := yaml.Marshal(header{Location: h.Location.String(), PageID: h.PageID, Title: h.Title, Journal: h.Journal, Resume: h.Resume})
 	if err != nil {
 		return err

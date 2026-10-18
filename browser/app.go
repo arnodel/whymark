@@ -12,6 +12,7 @@ package browser
 
 import (
 	"errors"
+	"github.com/arnodel/whymark"
 	"image"
 	"log"
 	"net/url"
@@ -20,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/arnodel/whymark/internal/whymark"
+	"github.com/arnodel/whymark/engine"
 	"github.com/arnodel/whynot"
 	"github.com/arnodel/whynot/codeblocks/chromahighlight"
 	"github.com/arnodel/whynot/codeblocks/kroki"
@@ -110,9 +111,9 @@ type App struct {
 	parser *whynot.Parser
 	// engine takes the turns of whymark documents, and pages keeps, for
 	// each page of one, its header and the request it answered.
-	engine *whymark.Engine
+	engine *engine.Engine
 	// engineOptions are what engine was made with (see engineWith).
-	engineOptions []whymark.Option
+	engineOptions []engine.Option
 	pages         map[*whynot.Document]*whymarkPage
 	// latest is the latest page of each whymark document that asks to be
 	// resumed, by its URL, kept in latestFile if set (see persist.go).
@@ -201,7 +202,7 @@ func NewApp(faceSelector fonts.FaceSelector, styleSheet whynot.StyleSheet, dark 
 			whynot.WithCodeBlockPlugin(kroki.Plugin{}),
 			whynot.WithCodeBlockPlugin(chromahighlight.Plugin{}),
 		),
-		engine:    whymark.NewEngine(registry),
+		engine:    engine.NewEngine(registry),
 		darkTheme: dark,
 		zoom:      1,
 		touch:     runtime.GOOS == "android" || runtime.GOOS == "ios",

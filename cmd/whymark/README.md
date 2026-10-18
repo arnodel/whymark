@@ -124,4 +124,4 @@ ignored because another comes first.
 
 The viewer is a thin program around the library: a `whynot.Panel` for the document,
 Ebitengine for the window and toolbar. Navigation, history, loading and theming live in
-`internal/browser`, which `giowhymark` shares, so the two behave the same.
+`browser`, which `giowhymark` shares, so the two behave the same.
