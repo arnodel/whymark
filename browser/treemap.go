@@ -107,7 +107,7 @@ func (a *App) mapScales() (least, most, open float64) {
 // mapArea returns where the expanded map's dots are.
 func (a *App) mapArea() image.Rectangle {
 	s := a.deviceScale
-	return a.bounds.Inset(int(12 * s)).Inset(int(10 * s))
+	return a.bounds.Inset(int(10 * s))
 }
 
 // clampMap keeps the expanded map's scale between its least and most, and
@@ -182,7 +182,7 @@ type mapPress struct {
 
 // mapInput handles e on the expanded map: the wheel pans it, or zooms it
 // with the shortcut modifier; a drag pans it; a tap on a dot selects the
-// page, shrinking it back, as does a press outside it.
+// page, shrinking it back.
 func (a *App) mapInput(e input.Event) {
 	m, ok := a.treeMapGeometry()
 	if !ok {
@@ -194,12 +194,8 @@ func (a *App) mapInput(e input.Event) {
 		shortcut = input.ModMeta
 	}
 	press := func(touch int, p image.Point) {
-		if !p.In(a.bounds) {
-			return // the toolbar's, or the dock's, not a click outside the map
-		}
 		if !p.In(m.rect) {
-			a.expandMap(false)
-			return
+			return // the toolbar's, or the dock's
 		}
 		t.mapPress = &mapPress{touch: touch, start: p, last: p}
 	}
@@ -329,7 +325,7 @@ func (a *App) treeMapGeometry() (treeMap, bool) {
 	w, h := b.Dx()/4, b.Dy()/4
 	now := time.Now()
 	corner := image.Rect(b.Max.X-margin-w, b.Max.Y-margin-h, b.Max.X-margin, b.Max.Y-margin)
-	full := b.Inset(margin)
+	full := b // expanded, it's a view of its own
 	m := treeMap{tree: t, grown: t.mapGrow.at(now)}
 	if m.icon = a.experiment("tree-map-icon") || float64(w) < 120*s || float64(h) < 80*s; m.icon {
 		size := int(32 * s)
@@ -414,7 +410,9 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 	bg := color.NRGBAModel.Convert(theme.BackgroundColor).(color.NRGBA)
 	bg.A = uint8(0xE6 + (0xFF-0xE6)*m.grown) // opaque, expanded
 	dst.DrawRect(r.Min.X, r.Min.Y, r.Dx(), r.Dy(), bg)
-	frame(dst, r, thin, theme.ThematicBreakColor)
+	if m.grown < 1 {
+		frame(dst, r, thin, theme.ThematicBreakColor)
+	}
 
 	in := dst.Clip(m.area.Inset(-m.dot))
 	path := t.path()

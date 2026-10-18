@@ -530,16 +530,13 @@ func TestTreeMap(t *testing.T) {
 		t.Errorf("Back after clicking a dot selected %s, want %s", app.tree.selected, lamp)
 	}
 
-	// M expands it; Escape, Enter, Back or a click outside shrinks it
-	// back, leaving the tree and the selection.
+	// M expands it; Escape, Enter or Back shrinks it back, leaving the
+	// tree and the selection.
 	for _, shrink := range []func(){
 		func() { press(app, "Escape") },
 		app.Back,
 		func() { press(app, "Enter") },
 		func() { press(app, "M") },
-		func() {
-			app.Frame([]input.Event{input.PointerButton{X: 1, Y: 1, Button: input.ButtonPrimary, Down: true}}, 0)
-		},
 	} {
 		press(app, "M")
 		if !app.MapExpanded() {
