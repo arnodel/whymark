@@ -1,7 +1,8 @@
 # Working on whymark
 
 Follow CONTRIBUTING.md, imported below: building and testing, issues and pull requests,
-comments, and the format's specification.
+comments, and the format's specification. See [ARCHITECTURE.md](ARCHITECTURE.md) for how the
+code is organized.
 
 @CONTRIBUTING.md
 

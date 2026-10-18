@@ -38,9 +38,8 @@ See [the viewer's README](cmd/whymark) for what it can do, and the keys.
   store of pages and its AI, and hands it to a browser (see
   [`internal/appsetup`](internal/appsetup)). The browser only knows the protocol.
 
-Separating them more clearly, with a protocol between the engine and the browser, is planned
-in [#1](https://github.com/arnodel/whymark/issues/1). See
-[CONTRIBUTING](CONTRIBUTING.md) for building and testing.
+[ARCHITECTURE](ARCHITECTURE.md) explains how the parts fit and where state and new code
+belong; [CONTRIBUTING](CONTRIBUTING.md) explains building and testing.
 
 ## License
 
