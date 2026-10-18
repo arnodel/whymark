@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/arnodel/whymark"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -14,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/arnodel/whymark"
 )
 
 // A Store keeps pages beyond an Engine's memory, so that a page made in an

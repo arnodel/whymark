@@ -7,7 +7,6 @@ package main
 
 import (
 	"flag"
-	"github.com/arnodel/whymark/internal/viewer"
 	"image"
 	"log"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"gioui.org/app"
 	"gioui.org/op"
 	"gioui.org/unit"
+	"github.com/arnodel/whymark/internal/appsetup"
 
 	"github.com/arnodel/whymark/browser"
 	"github.com/arnodel/whynot"
@@ -63,12 +63,7 @@ func main() {
 	}
 
 	win := new(app.Window)
-	browserApp := browser.NewApp(browser.NewDocumentFaceSelector(), styleSheet, !*light, registry, viewer.NewEngine(registry, *remoteAI))
-	if dir, err := viewer.DataDir(); err == nil {
-		if err := browserApp.RememberLatest(dir); err != nil {
-			log.Printf("remembering the latest pages: %v", err)
-		}
-	}
+	browserApp := browser.NewApp(browser.NewDocumentFaceSelector(), styleSheet, !*light, registry, appsetup.NewEngine(registry, *remoteAI), appsetup.UserData())
 	// Gio draws only when asked: a frame each time more of a document
 	// arrives.
 	browserApp.OnDocumentChange = win.Invalidate

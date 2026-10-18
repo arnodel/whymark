@@ -4,7 +4,6 @@ package browser
 
 import (
 	"context"
-	"github.com/arnodel/whymark/engine"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/arnodel/whymark/engine"
 	"github.com/arnodel/whymark/engine/ai"
 )
 

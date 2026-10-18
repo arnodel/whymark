@@ -2,12 +2,12 @@ package main
 
 import (
 	"flag"
-	"github.com/arnodel/whymark/internal/viewer"
 	"image"
 	"log"
 	"os"
 	"time"
 
+	"github.com/arnodel/whymark/internal/appsetup"
 	"github.com/hajimehoshi/ebiten/v2"
 
 	"github.com/arnodel/whymark/browser"
@@ -62,12 +62,7 @@ func main() {
 
 	scale := ebiten.Monitor().DeviceScaleFactor()
 	faceSelector := browser.NewDocumentFaceSelector()
-	app := browser.NewApp(faceSelector, styleSheet, !*light, registry, viewer.NewEngine(registry, *remoteAI))
-	if dir, err := viewer.DataDir(); err == nil {
-		if err := app.RememberLatest(dir); err != nil {
-			log.Printf("remembering the latest pages: %v", err)
-		}
-	}
+	app := browser.NewApp(faceSelector, styleSheet, !*light, registry, appsetup.NewEngine(registry, *remoteAI), appsetup.UserData())
 	doc, err := app.Load(location)
 	if err != nil {
 		panic(err)

@@ -6,12 +6,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/arnodel/whymark"
 	"io"
 	"log"
 	"strings"
 	"time"
 
+	"github.com/arnodel/whymark"
 	"github.com/arnodel/whynot"
 )
 

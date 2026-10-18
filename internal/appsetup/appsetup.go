@@ -1,8 +1,9 @@
-// Package viewer is what the whymark viewers share as programs, around
-// the browser they show: their data directory, their config file, and the
-// engine they build for it, with its store of pages, its AI, and the
-// documents that may use it.
-package viewer
+// Package appsetup is how the whymark viewers are set up, as programs,
+// around the browser they show: their data directory, their config file,
+// and the engine they build for it, with its store of pages, its AI, and
+// the documents that may use it. These are this app's choices, which
+// another program using the browser would make its own way.
+package appsetup
 
 import (
 	"log"
@@ -54,6 +55,23 @@ func NewEngine(registry *fetch.Registry, remoteAI bool) *engine.Engine {
 		)
 	}
 	return engine.NewEngine(registry, options...)
+}
+
+// UserData returns what the browser keeps for the user (see
+// browser.UserData): in the data directory (see DataDir), where files can
+// be kept, or else nil, for the browser to keep it in memory. What goes
+// wrong is logged.
+func UserData() browser.UserData {
+	dir, err := DataDir()
+	if err != nil {
+		return nil
+	}
+	user, err := openUserData(dir)
+	if err != nil {
+		log.Printf("keeping the user's data: %v", err)
+		return nil
+	}
+	return user
 }
 
 // isLocal reports whether location is a local document's: a file, or one

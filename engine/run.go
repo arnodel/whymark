@@ -3,7 +3,6 @@ package engine
 import (
 	"errors"
 	"fmt"
-	"github.com/arnodel/whymark"
 	"io"
 	"strings"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"github.com/arnodel/golua/lib/tablelib"
 	"github.com/arnodel/golua/lib/utf8lib"
 	rt "github.com/arnodel/golua/runtime"
+	"github.com/arnodel/whymark"
 
 	"github.com/arnodel/whymark/engine/compile"
 )

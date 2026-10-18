@@ -2,11 +2,12 @@ package browser
 
 import (
 	"bytes"
-	"github.com/arnodel/whymark"
 	"io"
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/arnodel/whymark"
 )
 
 // A whymark page asks for the reader's text with an input block: a fenced

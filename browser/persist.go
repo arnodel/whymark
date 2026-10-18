@@ -3,50 +3,20 @@ package browser
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
-	"github.com/arnodel/whymark"
 	"io"
 	"log"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 
+	"github.com/arnodel/whymark"
 	"github.com/arnodel/whynot"
 )
 
 // A whymark document's state lives in its pages, which its engine keeps.
-// The browser remembers the latest page of each document that asks to be
-// resumed (its header's resume hint), and carries on from it when the
-// document is opened again.
-
-// RememberLatest keeps the latest page of each document asking to be
-// resumed in dir, across sessions. Call it before the first document is
-// opened.
-func (a *App) RememberLatest(dir string) error {
-	a.latestFile = filepath.Join(dir, "latest.json")
-	a.latest = map[string]string{}
-	data, err := os.ReadFile(a.latestFile)
-	switch {
-	case errors.Is(err, os.ErrNotExist):
-	case err != nil:
-		return err
-	default:
-		if err := json.Unmarshal(data, &a.latest); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// documentKey returns the URL a document is remembered by: location,
-// without its query or fragment.
-func documentKey(location *url.URL) string {
-	u := *location
-	u.RawQuery, u.ForceQuery, u.Fragment, u.RawFragment = "", false, "", ""
-	return u.String()
-}
+// The browser remembers, for its user, the latest page of each document
+// that asks to be resumed (its header's resume hint), and carries on from
+// it when the document is opened again.
 
 // latestPage returns the latest page of the document at location, if it
 // asks to be resumed and location names it alone, with no query or
@@ -55,21 +25,20 @@ func (a *App) latestPage(location *url.URL) string {
 	if location.RawQuery != "" || location.Fragment != "" {
 		return ""
 	}
-	return a.latest[documentKey(location)]
+	id, err := a.user.LatestPage(whymark.DocumentOf(location))
+	if err != nil {
+		log.Printf("the latest page of %s: %v", location, err)
+	}
+	return id
 }
 
 // noteLatest notes the page h as its document's latest, if the document
-// asks to be resumed and persistence is on.
+// asks to be resumed.
 func (a *App) noteLatest(h whymark.Header) {
-	if !h.Resume || a.latestFile == "" {
+	if !h.Resume {
 		return
 	}
-	a.latest[documentKey(h.Location)] = h.PageID
-	data, err := json.MarshalIndent(a.latest, "", "  ")
-	if err == nil {
-		err = os.WriteFile(a.latestFile, data, 0o600)
-	}
-	if err != nil {
+	if err := a.user.SetLatestPage(whymark.DocumentOf(h.Location), h.PageID); err != nil {
 		log.Printf("remembering the latest page of %s: %v", h.Location, err)
 	}
 }
@@ -77,7 +46,7 @@ func (a *App) noteLatest(h whymark.Header) {
 // sameDocument reports whether x and y name the same document, whatever
 // their queries and fragments.
 func sameDocument(x, y *url.URL) bool {
-	return documentKey(x) == documentKey(y)
+	return whymark.DocumentOf(x) == whymark.DocumentOf(y)
 }
 
 // A whymark page has a URL of its own, its page URL: its location, with

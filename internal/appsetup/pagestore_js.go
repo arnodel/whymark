@@ -1,6 +1,6 @@
 //go:build js
 
-package viewer
+package appsetup
 
 import (
 	"errors"

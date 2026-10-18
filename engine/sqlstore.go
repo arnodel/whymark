@@ -7,12 +7,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/arnodel/whymark"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/arnodel/whymark"
 	_ "modernc.org/sqlite" // the "sqlite" driver, in pure Go
 )
 
