@@ -719,3 +719,18 @@ func TestTreeMapPanZoom(t *testing.T) {
 		t.Errorf("a tap on p0's dot selected %s, left the map expanded: %v", app.tree.selected, app.MapExpanded())
 	}
 }
+
+// TestTreeMapToolbarBack checks that the toolbar's Back on the expanded
+// map shrinks it back, as Backspace does: its press, outside the document,
+// isn't a click outside the map.
+func TestTreeMapToolbarBack(t *testing.T) {
+	app, _, _, shout := treeApp(t)
+	app.Relayout(1024, 700, 1, 40) // a toolbar above the document
+	app.ShowTree()
+	press(app, "M")
+	app.Frame([]input.Event{input.PointerButton{X: 10, Y: 10, Button: input.ButtonPrimary, Down: true}}, 0)
+	app.Back() // the toolbar's button
+	if !app.TreeShowing() || app.MapExpanded() || app.tree.selected != shout {
+		t.Errorf("the toolbar's Back left the tree showing: %v, the map expanded: %v", app.TreeShowing(), app.MapExpanded())
+	}
+}

@@ -194,6 +194,9 @@ func (a *App) mapInput(e input.Event) {
 		shortcut = input.ModMeta
 	}
 	press := func(touch int, p image.Point) {
+		if !p.In(a.bounds) {
+			return // the toolbar's, or the dock's, not a click outside the map
+		}
 		if !p.In(m.rect) {
 			a.expandMap(false)
 			return
