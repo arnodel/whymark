@@ -5,7 +5,7 @@ import (
 	"gioui.org/io/key"
 	"gioui.org/layout"
 
-	"github.com/arnodel/whymark/internal/browser"
+	"github.com/arnodel/whymark/browser"
 )
 
 // gioKeyNames are the Gio key names of browser.Key names that differ.

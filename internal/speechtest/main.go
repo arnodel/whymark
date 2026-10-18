@@ -14,7 +14,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/arnodel/whymark/internal/browser"
+	"github.com/arnodel/whymark/browser"
 )
 
 func main() {

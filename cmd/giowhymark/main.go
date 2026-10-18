@@ -17,8 +17,8 @@ import (
 	"gioui.org/op"
 	"gioui.org/unit"
 
-	"github.com/arnodel/whymark/internal/browser"
-	"github.com/arnodel/whymark/internal/whymark/ai/anthropic"
+	"github.com/arnodel/whymark/browser"
+	"github.com/arnodel/whymark/engine/ai/anthropic"
 	"github.com/arnodel/whynot"
 	"github.com/arnodel/whynot/backends/giobackend"
 	"github.com/arnodel/whynot/fonts"

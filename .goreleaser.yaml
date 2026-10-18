@@ -32,7 +32,7 @@ builds:
       # on Windows (ebitengine/hideconsole, already a dependency, also
       # hides it at runtime - this avoids the flash in the first place).
       - -s -w
-      - -X github.com/arnodel/whymark/internal/browser.Version={{ .Version }}
+      - -X github.com/arnodel/whymark/browser.Version={{ .Version }}
       - '{{ if eq .Os "windows" }}-H=windowsgui{{ end }}'
 
 archives:

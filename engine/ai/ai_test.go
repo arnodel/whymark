@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/arnodel/whymark"
 	"io"
 	"net/url"
 	"os"
@@ -13,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/arnodel/whymark/internal/whymark"
+	"github.com/arnodel/whymark/engine"
 	"github.com/arnodel/whynot/fetch"
 )
 
@@ -61,7 +62,7 @@ func (f *fakeProvider) count() int {
 // testEngine returns an Engine with the AI, serving files, by name, from a
 // temporary directory, and a function taking a turn of one and returning
 // its page.
-func testEngine(t *testing.T, files map[string]string, options ...whymark.Option) (*whymark.Engine, *fakeProvider, func(string) string) {
+func testEngine(t *testing.T, files map[string]string, options ...engine.Option) (*engine.Engine, *fakeProvider, func(string) string) {
 	t.Helper()
 	e, provider, file := testFiles(t, files, options...)
 	take := func(name string) string {
@@ -73,7 +74,7 @@ func testEngine(t *testing.T, files map[string]string, options ...whymark.Option
 
 // testFiles is testEngine, returning a function giving a file's URL
 // instead.
-func testFiles(t *testing.T, files map[string]string, options ...whymark.Option) (*whymark.Engine, *fakeProvider, func(string) *url.URL) {
+func testFiles(t *testing.T, files map[string]string, options ...engine.Option) (*engine.Engine, *fakeProvider, func(string) *url.URL) {
 	t.Helper()
 	dir := t.TempDir()
 	for name, content := range files {
@@ -91,7 +92,7 @@ func testFiles(t *testing.T, files map[string]string, options ...whymark.Option)
 	}
 	t.Cleanup(func() { root.Close() })
 	provider := &fakeProvider{}
-	e := whymark.NewEngine(fetch.NewRegistry(fetch.FileResolver{Root: root}), append(options, whymark.WithCapabilities(&AI{
+	e := engine.NewEngine(fetch.NewRegistry(fetch.FileResolver{Root: root}), append(options, engine.WithCapabilities(&AI{
 		Provider: provider,
 		Models:   map[string]string{"fast": "small-model", "smart": "big-model"},
 		Default:  "fast",
@@ -108,7 +109,7 @@ type page struct {
 }
 
 // turn takes a turn, and reads its page.
-func turn(t *testing.T, e *whymark.Engine, req whymark.Request) page {
+func turn(t *testing.T, e *engine.Engine, req whymark.Request) page {
 	t.Helper()
 	r, err := e.Turn(context.Background(), req)
 	if err != nil {
@@ -159,7 +160,7 @@ func TestBlocks(t *testing.T) {
 		"plain.md":  "---\nwhymark:\n  version: 1\n---\n" + strings.ReplaceAll(body, "ai = require \"ai\"", "ai = false"),
 		"twice.md":  usesAI + "# Twice\n\n```ai\nSay something.\n```\n\n```ai\nSay something.\n```\n",
 		"silent.md": usesAI + "# Silent\n\n```without ai\nNo AI here.\n```\n",
-	}, whymark.WithGrant(func(*url.URL, string) bool { return allow }))
+	}, engine.WithGrant(func(*url.URL, string) bool { return allow }))
 	page := take("shop.md")
 	wants(t, "with the AI", page, "Before.\n\nanswer 1", "After.")
 	wantsNot(t, "with the AI", page, "It's quiet", "Describe")
@@ -243,7 +244,7 @@ func TestIncomplete(t *testing.T) {
 func TestChatExample(t *testing.T) {
 	files := map[string]string{}
 	for _, name := range []string{"chat.md", "lib/story.lua"} {
-		source, err := os.ReadFile("../../../examples/" + name)
+		source, err := os.ReadFile("../../examples/" + name)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -280,7 +281,7 @@ func TestChatExample(t *testing.T) {
 // two of them here, are sent before the next page's, oldest first; ask
 // records text answers too; and without the AI, it does nothing.
 func TestLibStory(t *testing.T) {
-	source, err := os.ReadFile("../../../examples/lib/story.lua")
+	source, err := os.ReadFile("../../examples/lib/story.lua")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -290,7 +291,7 @@ func TestLibStory(t *testing.T) {
 		"turn.write(tostring(story.ask(turn, ai, {prompt = \"second \" .. n})))\n```\n"
 	allow := true
 	e, provider, file := testFiles(t, map[string]string{"lib/story.lua": string(source), "story.md": doc},
-		whymark.WithGrant(func(*url.URL, string) bool { return allow }))
+		engine.WithGrant(func(*url.URL, string) bool { return allow }))
 	first := turn(t, e, whymark.Request{Location: file("story.md")})
 	req, _ := whymark.Follow(first.Header, "?n=2")
 	turn(t, e, req)
@@ -314,14 +315,14 @@ func TestLibStory(t *testing.T) {
 func TestTodoExample(t *testing.T) {
 	files := map[string]string{}
 	for _, name := range []string{"todo.md", "lib/dates.lua"} {
-		source, err := os.ReadFile("../../../examples/" + name)
+		source, err := os.ReadFile("../../examples/" + name)
 		if err != nil {
 			t.Fatal(err)
 		}
 		files[name] = string(source)
 	}
 	now := time.Date(2026, 10, 16, 9, 0, 0, 0, time.UTC)
-	e, provider, file := testFiles(t, files, whymark.WithClock(func() time.Time { return now }))
+	e, provider, file := testFiles(t, files, engine.WithClock(func() time.Time { return now }))
 	start := turn(t, e, whymark.Request{Location: file("todo.md")})
 	provider.json = `{"reply": "Added your groceries.", "ops": [
 		{"op": "add", "id": 0, "title": "Groceries", "parent": 0, "due": "2026-10-18", "urgent": false},

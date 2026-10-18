@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/arnodel/whymark"
 	"io"
 	"log"
 	"net/url"
@@ -12,7 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/arnodel/whymark/internal/whymark"
+	"github.com/arnodel/whymark/engine"
 	"github.com/arnodel/whynot"
 )
 
@@ -42,14 +43,14 @@ func (a *App) EnablePersistence(dir string) error {
 	if err != nil {
 		return err
 	}
-	a.engineWith(whymark.WithStore(store))
+	a.engineWith(engine.WithStore(store))
 	return nil
 }
 
 // engineWith makes the engine anew with options, on top of those it had.
-func (a *App) engineWith(options ...whymark.Option) {
+func (a *App) engineWith(options ...engine.Option) {
 	a.engineOptions = append(a.engineOptions, options...)
-	a.engine = whymark.NewEngine(a.registry, a.engineOptions...)
+	a.engine = engine.NewEngine(a.registry, a.engineOptions...)
 }
 
 // documentKey returns the URL a document is remembered by: location,
@@ -123,7 +124,7 @@ func splitPageURL(u *url.URL) (*url.URL, string, bool) {
 
 // noteVisit tells the engine when the page shown becomes a whymark page
 // other than the one it was last told about, as visits are what tidying
-// its store goes by (see whymark.Engine.Visit).
+// its store goes by (see engine.Engine.Visit).
 func (a *App) noteVisit() {
 	if a.Panel == nil || a.overlaid != nil {
 		return

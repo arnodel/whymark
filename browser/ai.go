@@ -3,8 +3,8 @@ package browser
 import (
 	"net/url"
 
-	"github.com/arnodel/whymark/internal/whymark"
-	"github.com/arnodel/whymark/internal/whymark/ai"
+	"github.com/arnodel/whymark/engine"
+	"github.com/arnodel/whymark/engine/ai"
 )
 
 // EnableAI gives whymark documents declaring the AI capability an AI to
@@ -14,8 +14,8 @@ import (
 func (a *App) EnableAI(provider ai.Provider, models map[string]string, remote bool) {
 	capability := &ai.AI{Provider: provider, Models: models, Default: "balanced"}
 	a.engineWith(
-		whymark.WithCapabilities(capability),
-		whymark.WithGrant(func(document *url.URL, name string) bool {
+		engine.WithCapabilities(capability),
+		engine.WithGrant(func(document *url.URL, name string) bool {
 			return remote || isLocal(document)
 		}),
 	)

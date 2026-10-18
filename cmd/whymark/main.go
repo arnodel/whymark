@@ -10,8 +10,8 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
-	"github.com/arnodel/whymark/internal/browser"
-	"github.com/arnodel/whymark/internal/whymark/ai/anthropic"
+	"github.com/arnodel/whymark/browser"
+	"github.com/arnodel/whymark/engine/ai/anthropic"
 	"github.com/arnodel/whynot"
 	"github.com/arnodel/whynot/backends/ebitenbackend"
 	"github.com/arnodel/whynot/fonts"

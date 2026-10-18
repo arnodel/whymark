@@ -1,12 +1,13 @@
 //go:build !js
 
-package whymark
+package engine
 
 import (
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/arnodel/whymark"
 	"os"
 	"path/filepath"
 	"strings"
@@ -142,16 +143,16 @@ func (s *SQLiteStore) LoadPage(id string) (SavedPage, bool, error) {
 }
 
 // Pages lists the pages of document, by when they were made.
-func (s *SQLiteStore) Pages(document string) ([]PageInfo, error) {
+func (s *SQLiteStore) Pages(document whymark.Document) ([]whymark.PageInfo, error) {
 	rows, err := s.db.Query(`SELECT id, parent, passage, title, created_at, last_visited_at FROM pages
-		WHERE document = ? ORDER BY created_at, id`, document)
+		WHERE document = ? ORDER BY created_at, id`, string(document))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var pages []PageInfo
+	var pages []whymark.PageInfo
 	for rows.Next() {
-		var p PageInfo
+		var p whymark.PageInfo
 		var created, visited string
 		if err := rows.Scan(&p.ID, &p.Parent, &p.Passage, &p.Title, &created, &visited); err != nil {
 			return nil, err

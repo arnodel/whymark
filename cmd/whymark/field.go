@@ -13,7 +13,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"golang.org/x/image/font"
 
-	"github.com/arnodel/whymark/internal/browser"
+	"github.com/arnodel/whymark/browser"
 	"github.com/arnodel/whynot/canvas"
 	"github.com/arnodel/whynot/fonts"
 )

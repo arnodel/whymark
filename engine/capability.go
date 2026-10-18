@@ -1,9 +1,10 @@
-package whymark
+package engine
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/arnodel/whymark"
 	"io"
 	"net/url"
 	"os"
@@ -14,7 +15,7 @@ import (
 	rt "github.com/arnodel/golua/runtime"
 	"github.com/arnodel/golua/safeio"
 
-	"github.com/arnodel/whymark/internal/whymark/compile"
+	"github.com/arnodel/whymark/engine/compile"
 )
 
 // A Capability is something a document can't do by itself, such as asking
@@ -53,7 +54,7 @@ type TurnContext struct {
 	// PageID is the id of the page the turn makes.
 	PageID string
 	// Request is the turn's request.
-	Request Request
+	Request whymark.Request
 	// Write writes text to the page, after its header (see
 	// turn.write_headers): what the page shows of the module's work.
 	Write func(string) error

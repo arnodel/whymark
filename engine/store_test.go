@@ -1,7 +1,8 @@
-package whymark
+package engine
 
 import (
 	"bufio"
+	"github.com/arnodel/whymark"
 	"io"
 	"math"
 	"net/url"
@@ -29,7 +30,7 @@ func testSavedValues(t *testing.T, store Store) {
 		keys:   []any{"n", "x", true, int64(7), "list", 1.5},
 		values: []any{int64(3), 3.0, "yes", nil, inner, false},
 	}
-	snap := &snapshot{document: "doc", state: value, request: Request{Location: mustParse(t, "file:///doc.md?q=1#p")}}
+	snap := &snapshot{document: "doc", state: value, request: whymark.Request{Location: mustParse(t, "file:///doc.md?q=1#p")}}
 	if err := store.SavePage("abc", snap.saved()); err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +64,7 @@ func testEngineResumesFromStore(t *testing.T, store Store) {
 	files := map[string]string{"count.md": "---\nwhymark:\n  version: 1\n---\n```lua\nfunction init(turn) return {n = 0} end\n```\n# (Count)\n\n" +
 		"`turn.state.n = turn.state.n + 1`\ncount `= turn.state.n`, before `= turn.previous and turn.previous.state.n or \"none\"`\n"}
 	e, file := testEngine(t, files, WithStore(store))
-	page := take(t, e, Request{Location: file("count.md")})
+	page := take(t, e, whymark.Request{Location: file("count.md")})
 	page = follow(t, e, page, "?")
 	wants(t, "the first run", page, []string{"count 2, before 1"}, nil)
 
@@ -77,7 +78,7 @@ func testEngineResumesFromStore(t *testing.T, store Store) {
 		t.Fatal(err)
 	}
 	br := bufio.NewReader(r)
-	h, err := ReadHeader(br)
+	h, err := whymark.ReadHeader(br)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,9 +86,9 @@ func testEngineResumesFromStore(t *testing.T, store Store) {
 	if h.PageID != page.PageID || !strings.Contains(string(body), "count 2, before 1") || req.FromPageID == "" {
 		t.Errorf("the saved page is %+v, %q, answering %+v", h, body, req)
 	}
-	resumed := take(t, again, Request{Location: page.Location, FromPageID: page.PageID})
+	resumed := take(t, again, whymark.Request{Location: page.Location, FromPageID: page.PageID})
 	wants(t, "the next run, from the last page", resumed, []string{"count 3, before 2"}, []string{"The page stopped"})
-	if _, err := again.Turn(t.Context(), Request{Location: page.Location, FromPageID: "nosuchpage"}); err == nil {
+	if _, err := again.Turn(t.Context(), whymark.Request{Location: page.Location, FromPageID: "nosuchpage"}); err == nil {
 		t.Error("a page id the store doesn't have was continued from")
 	}
 }

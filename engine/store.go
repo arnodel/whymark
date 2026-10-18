@@ -1,4 +1,4 @@
-package whymark
+package engine
 
 import (
 	"bufio"
@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/arnodel/whymark"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -47,7 +48,7 @@ type SavedPage struct {
 type PageLister interface {
 	// Pages lists the pages of document, its URL with no query or
 	// fragment, by when they were made.
-	Pages(document string) ([]PageInfo, error)
+	Pages(document whymark.Document) ([]whymark.PageInfo, error)
 }
 
 // A PageVisitor is a Store that records when pages are visited (see
@@ -56,24 +57,13 @@ type PageVisitor interface {
 	Visit(id string, t time.Time) error
 }
 
-// PageInfo is what a list of pages says of each: enough to place it in the
-// tree of pages, and label it.
-type PageInfo struct {
-	ID, Parent     string // Parent is "" for a document's start
-	Passage, Title string
-	Time           time.Time // when it was made
-	// LastVisited is when it was last visited, if the Store records it
-	// (see PageVisitor).
-	LastVisited time.Time
-}
-
 // titleOf returns the title in the header of output, a page as its turn
 // wrote it, or "".
 func titleOf(output string) string {
 	if output == "" {
 		return ""
 	}
-	h, err := ReadHeader(bufio.NewReader(strings.NewReader(output)))
+	h, err := whymark.ReadHeader(bufio.NewReader(strings.NewReader(output)))
 	if err != nil {
 		return ""
 	}
@@ -168,7 +158,7 @@ func restored(p SavedPage) (*snapshot, error) {
 	close(done)
 	snap := &snapshot{
 		done: done, document: p.Document, passage: p.Passage, state: state, notes: notes,
-		request: Request{Location: location, FromPageID: p.Parent, Input: p.Input},
+		request: whymark.Request{Location: location, FromPageID: p.Parent, Input: p.Input},
 		parent:  p.Parent, time: p.Time,
 	}
 	snap.output.WriteString(p.Output)
