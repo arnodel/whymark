@@ -286,8 +286,9 @@ func (a *App) Draw(dst canvas.Canvas, now time.Duration) {
 // as for a fling or a scrollbar fading out, or while the current page is
 // still arriving, for the waiting dots.
 func (a *App) Animating() bool {
-	if a.tree != nil {
-		return len(a.tree.loading) > 0
+	if t := a.tree; t != nil {
+		now := time.Now()
+		return len(t.loading) > 0 || t.closing != nil || t.camera.moving(now) || t.slide.moving(now)
 	}
 	if a.overlaid == nil && !a.Panel.View().Document().Complete() {
 		return true

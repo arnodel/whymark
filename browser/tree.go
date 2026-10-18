@@ -34,6 +34,57 @@ type tree struct {
 	views map[string]*whynot.View
 	// loading is the pages being loaded.
 	loading map[string]bool
+	// camera is how the tree is drawn on the window, slide how its frames
+	// are moving to their places, and closing what to do once the camera
+	// has zoomed in on a page, closing the view.
+	camera  treeCamera
+	slide   treeSlide
+	closing func()
+}
+
+// treeZoomTime and treeSlideTime are how long the tree view takes to zoom
+// in or out, and to slide to a new selection.
+var treeZoomTime, treeSlideTime = 300 * time.Millisecond, 200 * time.Millisecond
+
+// A treeCamera moves the tree view from one transform to another, over a
+// length of time, easing out.
+type treeCamera struct {
+	from, to canvas.Transform
+	start    time.Time
+	length   time.Duration
+}
+
+// at returns c's transform at now.
+func (c treeCamera) at(now time.Time) canvas.Transform {
+	if !c.moving(now) {
+		return c.to
+	}
+	f := float64(now.Sub(c.start)) / float64(c.length)
+	f = 1 - (1-f)*(1-f)*(1-f)
+	lerp := func(x, y float64) float64 { return x + (y-x)*f }
+	return canvas.Transform{
+		Scale: lerp(c.from.Scale, c.to.Scale),
+		X:     lerp(c.from.X, c.to.X),
+		Y:     lerp(c.from.Y, c.to.Y),
+	}
+}
+
+// moving reports whether c is still moving at now.
+func (c treeCamera) moving(now time.Time) bool {
+	return c.length > 0 && now.Before(c.start.Add(c.length))
+}
+
+// move starts moving t's camera from from to to, over length.
+func (t *tree) move(from, to canvas.Transform, length time.Duration) {
+	t.camera = treeCamera{from: from, to: to, start: time.Now(), length: length}
+}
+
+// zoomOn returns the camera showing r, a frame, as the whole window: a
+// page's frame is half its size, so its page is then drawn as it is.
+func (a *App) zoomOn(r image.Rectangle) canvas.Transform {
+	b := a.bounds
+	s := float64(b.Dx()) / float64(r.Dx())
+	return canvas.Transform{Scale: s, X: float64(b.Min.X) - s*float64(r.Min.X), Y: float64(b.Min.Y) - s*float64(r.Min.Y)}
 }
 
 // A loadedThumb is a page loaded in the background for the tree view:
@@ -83,10 +134,10 @@ func (a *App) treePage() *whymarkPage {
 
 // ShowTree shows the tree of the current document's pages around the
 // current page, at half size: its parent above, its siblings beside it,
-// oldest on the left, and its children below. The arrow keys move the
-// selection, which stays in the middle, and Enter opens the selected page
-// (see OpenSelected). A no-op if the current document isn't a page of a
-// whymark document.
+// oldest on the left, and its children below, zooming out from the
+// current page. The arrow keys move the selection, which slides to the
+// middle, and Enter opens the selected page (see OpenSelected). A no-op if
+// the current document isn't a page of a whymark document.
 func (a *App) ShowTree() {
 	p := a.treePage()
 	if p == nil || a.tree != nil {
@@ -110,6 +161,8 @@ func (a *App) ShowTree() {
 			}
 		}
 	}
+	r, _ := a.treeRect(t.start)
+	t.move(a.zoomOn(r), canvas.Identity, treeZoomTime)
 }
 
 // listPages lists the tree's pages again, from the engine.
@@ -136,29 +189,59 @@ func (a *App) listPages() {
 	}
 }
 
-// HideTree closes the view of the tree of pages, leaving the current page
-// as it was.
+// HideTree closes the view of the tree of pages at once, leaving the
+// current page as it was.
 func (a *App) HideTree() { a.tree = nil }
 
-// ToggleTree shows the tree of pages, or hides it if it's showing.
+// closeTree closes the view of the tree of pages by zooming in on page
+// id's frame, then does act: at once if the frame isn't on screen. A
+// no-op if it's already closing.
+func (a *App) closeTree(id string, act func()) {
+	t := a.tree
+	if t.closing != nil {
+		return
+	}
+	camera := t.camera.at(time.Now())
+	r, ok := a.treeRect(id)
+	if !ok || treeZoomTime <= 0 || !camera.ApplyRect(r).Overlaps(a.bounds) {
+		a.HideTree()
+		act()
+		return
+	}
+	t.closing = act
+	t.move(camera, a.zoomOn(r), treeZoomTime)
+}
+
+// finishTree closes the view of the tree of pages if it has finished
+// zooming in on a page (see closeTree).
+func (a *App) finishTree() {
+	if t := a.tree; t != nil && t.closing != nil && !t.camera.moving(time.Now()) {
+		a.HideTree()
+		t.closing()
+	}
+}
+
+// ToggleTree shows the tree of pages, or closes it if it's showing,
+// zooming in on the current page.
 func (a *App) ToggleTree() {
 	if a.tree != nil {
-		a.HideTree()
+		a.closeTree(a.tree.start, func() {})
 		return
 	}
 	a.ShowTree()
 }
 
-// OpenSelected opens the page selected in the tree of pages, as opening
-// its page URL does, and closes the tree. A no-op if the tree isn't
-// showing.
+// OpenSelected opens the page selected in the tree of pages, zooming in on
+// it, as opening its page URL does, and closes the tree. A no-op if the
+// tree isn't showing.
 func (a *App) OpenSelected() {
 	t := a.tree
 	if t == nil {
 		return
 	}
-	a.HideTree()
-	if t.selected == t.start {
+	id := t.selected
+	if id == t.start {
+		a.closeTree(id, func() {})
 		return
 	}
 	u, err := url.Parse(string(t.document))
@@ -166,8 +249,30 @@ func (a *App) OpenSelected() {
 		log.Printf("opening a page of %s: %v", t.document, err)
 		return
 	}
-	u.Fragment = t.pages[t.selected].Passage + "@" + t.selected
-	a.follow(u)
+	u.Fragment = t.pages[id].Passage + "@" + id
+	a.closeTree(id, func() { a.follow(u) })
+}
+
+// selectPage selects page id in the tree view. Its frames slide to their
+// new places from where they were; those it didn't show slide in with the
+// page selected before.
+func (a *App) selectPage(id string) {
+	t := a.tree
+	if id == t.selected {
+		return
+	}
+	now := time.Now()
+	from := map[string]image.Rectangle{}
+	for _, f := range a.shownFrames(now) {
+		from[f.id] = f.rect
+	}
+	old := t.selected
+	t.selected = id
+	var d image.Point
+	if after, ok := a.treeRect(old); ok {
+		d = after.Min.Sub(from[old].Min)
+	}
+	t.slide = treeSlide{from: from, d: d, start: now, length: treeSlideTime}
 }
 
 // treeKey handles k while the tree of pages shows, reporting whether it
@@ -177,14 +282,18 @@ func (a *App) treeKey(k Key) bool {
 	if k.Shortcut || k.Shift || k.Alt {
 		return false
 	}
+	if t.closing != nil {
+		// Zooming in on a page: the tree is done with.
+		return slices.Contains([]string{"Up", "Down", "Left", "Right", "Enter", "Escape"}, k.Name)
+	}
 	switch k.Name {
 	case "Up":
 		if parent := t.pages[t.selected].Parent; parent != "" {
-			t.selected = parent
+			a.selectPage(parent)
 		}
 	case "Down":
 		if child := t.preferredChild(t.selected); child != "" {
-			t.selected = child
+			a.selectPage(child)
 		}
 	case "Left", "Right":
 		siblings := t.children[t.pages[t.selected].Parent]
@@ -195,12 +304,12 @@ func (a *App) treeKey(k Key) bool {
 			i++
 		}
 		if i >= 0 && i < len(siblings) {
-			t.selected = siblings[i]
+			a.selectPage(siblings[i])
 		}
 	case "Enter":
 		a.OpenSelected()
 	case "Escape":
-		a.HideTree()
+		a.closeTree(t.start, func() {})
 	default:
 		return false
 	}
@@ -251,67 +360,149 @@ func treeRow(ids []string, k int, r image.Rectangle, gap int) []treeFrame {
 
 // treeLayout returns the frames of the tree view: the selected page's
 // parent, the row of the selected page and its siblings, and the row of
-// its children, with the child Down selects below it; and the lines
-// joining them, as rectangles to fill.
-func (a *App) treeLayout() (parent []treeFrame, rows [][]treeFrame, lines []image.Rectangle) {
+// its children, with the child Down selects below it.
+func (a *App) treeLayout() (parent []treeFrame, rows [][]treeFrame) {
 	t := a.tree
 	b := a.bounds
 	gap := int(treeGap * a.deviceScale)
-	thick := max(1, int(a.deviceScale))
 	w, h := b.Dx()/2, b.Dy()/2
 	center := image.Pt(b.Min.X+b.Dx()/2, b.Min.Y+b.Dy()/2)
 	sel := image.Rect(center.X-w/2, center.Y-h/2, center.X-w/2+w, center.Y-h/2+h)
-	down := func(from, to image.Rectangle) image.Rectangle {
-		x := from.Min.X + from.Dx()/2 - thick/2
-		return image.Rect(x, from.Max.Y, x+thick, to.Min.Y)
-	}
-	row := func(frames []treeFrame) {
-		rows = append(rows, frames)
-		for i := 1; i < len(frames); i++ {
-			y := frames[i].rect.Min.Y + h/2 - thick/2
-			lines = append(lines, image.Rect(frames[i-1].rect.Max.X, y, frames[i].rect.Min.X, y+thick))
-		}
-	}
 	p := t.pages[t.selected].Parent
 	if p != "" {
-		r := sel.Sub(image.Pt(0, h+gap))
-		parent = []treeFrame{{p, r}}
-		lines = append(lines, down(r, sel))
+		parent = []treeFrame{{p, sel.Sub(image.Pt(0, h+gap))}}
 	}
 	siblings := t.children[p]
-	row(treeRow(siblings, slices.Index(siblings, t.selected), sel, gap))
+	rows = append(rows, treeRow(siblings, slices.Index(siblings, t.selected), sel, gap))
 	if child := t.preferredChild(t.selected); child != "" {
 		children := t.children[t.selected]
-		r := sel.Add(image.Pt(0, h+gap))
-		row(treeRow(children, slices.Index(children, child), r, gap))
-		lines = append(lines, down(sel, r))
+		rows = append(rows, treeRow(children, slices.Index(children, child), sel.Add(image.Pt(0, h+gap)), gap))
 	}
-	return parent, rows, lines
+	return parent, rows
 }
 
-// treeFrames returns the frames of the tree view that are on screen.
-func (a *App) treeFrames() []treeFrame {
-	parent, rows, _ := a.treeLayout()
+// treeFrames returns the frames of the tree view that overlap area, where
+// they are once they've slid there.
+func (a *App) treeFrames(area image.Rectangle) []treeFrame {
+	parent, rows := a.treeLayout()
 	var frames []treeFrame
 	for _, f := range slices.Concat(append([][]treeFrame{parent}, rows...)...) {
-		if f.rect.Overlaps(a.bounds) {
+		if f.rect.Overlaps(area) {
 			frames = append(frames, f)
 		}
 	}
 	return frames
 }
 
-// drawTree draws the tree view.
+// treeRect returns where page id's frame is in the tree view, once it's
+// slid there, if it's shown at all, on screen or not.
+func (a *App) treeRect(id string) (image.Rectangle, bool) {
+	for _, f := range a.treeFrames(image.Rect(-1<<30, -1<<30, 1<<30, 1<<30)) {
+		if f.id == id {
+			return f.rect, true
+		}
+	}
+	return image.Rectangle{}, false
+}
+
+// A treeSlide moves the frames of the tree view to their places after the
+// selection changed, over a length of time, easing out: from where they
+// were, or, for those that weren't shown, from d before their places.
+type treeSlide struct {
+	from   map[string]image.Rectangle
+	d      image.Point
+	start  time.Time
+	length time.Duration
+}
+
+// moving reports whether s is still moving at now.
+func (s treeSlide) moving(now time.Time) bool {
+	return s.length > 0 && now.Before(s.start.Add(s.length))
+}
+
+// at returns where s has moved r, page id's frame once it's there, at now.
+func (s treeSlide) at(id string, r image.Rectangle, now time.Time) image.Rectangle {
+	if !s.moving(now) {
+		return r
+	}
+	from, ok := s.from[id]
+	if !ok {
+		from = r.Sub(s.d)
+	}
+	f := float64(now.Sub(s.start)) / float64(s.length)
+	f = 1 - (1-f)*(1-f)*(1-f)
+	lerp := func(x, y int) int { return x + int(float64(y-x)*f) }
+	return r.Add(image.Pt(lerp(from.Min.X, r.Min.X), lerp(from.Min.Y, r.Min.Y)).Sub(r.Min))
+}
+
+// shownFrames returns all the frames of the tree view, where they are at
+// now, sliding.
+func (a *App) shownFrames(now time.Time) []treeFrame {
+	frames := a.treeFrames(image.Rect(-1<<30, -1<<30, 1<<30, 1<<30))
+	for i, f := range frames {
+		frames[i].rect = a.tree.slide.at(f.id, f.rect, now)
+	}
+	return frames
+}
+
+// treeLines returns the lines of the tree view, as rectangles to fill,
+// between frames, which are where they're shown: one joining each row of
+// siblings, and one from the selected page up to its parent and down to
+// the child Down selects, bent while they're not in line.
+func (a *App) treeLines(frames []treeFrame) []image.Rectangle {
+	t := a.tree
+	thick := max(1, int(a.deviceScale))
+	at := map[string]image.Rectangle{}
+	for _, f := range frames {
+		at[f.id] = f.rect
+	}
+	var lines []image.Rectangle
+	link := func(top, bottom image.Rectangle) {
+		x1 := top.Min.X + top.Dx()/2 - thick/2
+		x2 := bottom.Min.X + bottom.Dx()/2 - thick/2
+		y := (top.Max.Y+bottom.Min.Y)/2 - thick/2
+		lines = append(lines,
+			image.Rect(x1, top.Max.Y, x1+thick, y+thick),
+			image.Rect(min(x1, x2), y, max(x1, x2)+thick, y+thick),
+			image.Rect(x2, y, x2+thick, bottom.Min.Y))
+	}
+	sel := at[t.selected]
+	parent := t.pages[t.selected].Parent
+	if parent != "" {
+		link(at[parent], sel)
+	}
+	if child := t.preferredChild(t.selected); child != "" {
+		link(sel, at[child])
+	}
+	for _, siblings := range [][]string{t.children[parent], t.children[t.selected]} {
+		for i := 1; i < len(siblings); i++ {
+			l, r := at[siblings[i-1]], at[siblings[i]]
+			y := l.Min.Y + l.Dy()/2 - thick/2
+			lines = append(lines, image.Rect(l.Max.X, y, r.Min.X, y+thick))
+		}
+	}
+	return lines
+}
+
+// drawTree draws the tree view, through its camera.
 func (a *App) drawTree(dst canvas.Canvas, now time.Duration) {
+	t := a.tree
 	background, line := a.stackColors()
 	b := a.bounds
 	dst.DrawRect(b.Min.X, b.Min.Y, b.Dx(), b.Dy(), background)
-	_, _, lines := a.treeLayout()
-	for _, l := range lines {
+	wall := time.Now()
+	camera := t.camera.at(wall)
+	shown := camera.Invert().ApplyRect(b)
+	dst = dst.Clip(b).Transform(camera)
+	frames := a.shownFrames(wall)
+	for _, l := range a.treeLines(frames) {
 		dst.DrawRect(l.Min.X, l.Min.Y, l.Dx(), l.Dy(), line)
 	}
 	thick := max(1, int(a.deviceScale))
-	for _, f := range a.treeFrames() {
+	for _, f := range frames {
+		if !f.rect.Overlaps(shown) {
+			continue
+		}
 		v := a.treeView(f.id)
 		if v.Bounds() != b || v.Scale() != a.deviceScale || v.Zoom() != a.zoom {
 			a.place(v)
@@ -354,7 +545,7 @@ func (a *App) loadThumbs() {
 	if t == nil {
 		return
 	}
-	for _, f := range a.treeFrames() {
+	for _, f := range a.treeFrames(a.bounds) {
 		if _, ok := t.views[f.id]; ok || t.loading[f.id] {
 			continue
 		}
@@ -413,6 +604,11 @@ func (a *App) addThumbs() {
 // treeInput handles events while the tree view shows: a click on a page
 // selects it, and a click on the selected page opens it.
 func (a *App) treeInput(events []input.Event) {
+	if a.tree.closing != nil {
+		return
+	}
+	now := time.Now()
+	camera := a.tree.camera.at(now).Invert()
 	for _, e := range events {
 		var at image.Point
 		switch e := e.(type) {
@@ -426,7 +622,9 @@ func (a *App) treeInput(events []input.Event) {
 		default:
 			continue
 		}
-		for _, f := range a.treeFrames() {
+		x, y := camera.Apply(float64(at.X), float64(at.Y))
+		at = image.Pt(int(x), int(y))
+		for _, f := range a.shownFrames(now) {
 			if !at.In(f.rect) {
 				continue
 			}
@@ -434,8 +632,8 @@ func (a *App) treeInput(events []input.Event) {
 				a.OpenSelected()
 				return
 			}
-			a.tree.selected = f.id
-			break
+			a.selectPage(f.id)
+			return
 		}
 	}
 }

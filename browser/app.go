@@ -251,6 +251,7 @@ func (a *App) Update() {
 	a.noteVisit()
 	a.loadTrail()
 	a.addTrails()
+	a.finishTree()
 	a.addThumbs()
 	a.loadThumbs()
 	if a.overlaid == nil {

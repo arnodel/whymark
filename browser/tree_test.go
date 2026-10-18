@@ -3,10 +3,12 @@
 package browser
 
 import (
+	"image"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/arnodel/whynot/canvas"
 	"github.com/arnodel/whynot/input"
 )
 
@@ -20,6 +22,7 @@ func pageID(app *App) string {
 // the current page.
 func treeApp(t *testing.T) (app *App, hall, lamp, shout string) {
 	t.Helper()
+	instantTree(t)
 	dir := t.TempDir()
 	start := writeTempMD(t, dir, "start.md", "# Start\n\n[Play](cellar.md)\n")
 	writeTempMD(t, dir, "cellar.md", cellarDoc(false))
@@ -32,6 +35,14 @@ func treeApp(t *testing.T) (app *App, hall, lamp, shout string) {
 	app.Follow("?shout=yes")
 	shout = pageID(app)
 	return app, hall, lamp, shout
+}
+
+// instantTree makes the tree view's zooms and slides take no time, for
+// the test t.
+func instantTree(t *testing.T) {
+	zoom, slide := treeZoomTime, treeSlideTime
+	treeZoomTime, treeSlideTime = 0, 0
+	t.Cleanup(func() { treeZoomTime, treeSlideTime = zoom, slide })
 }
 
 // press presses the key named name, with no modifiers.
@@ -120,7 +131,7 @@ func TestTreeDrawAndClick(t *testing.T) {
 
 	// A click in the middle of id's frame, wherever the selection put it.
 	click := func(id string) {
-		for _, f := range app.treeFrames() {
+		for _, f := range app.treeFrames(app.Bounds()) {
 			if f.id == id {
 				p := f.rect.Min.Add(f.rect.Size().Div(2))
 				app.Frame([]input.Event{input.PointerButton{X: p.X, Y: p.Y, Button: input.ButtonPrimary, Down: true}}, 0)
@@ -149,5 +160,55 @@ func TestTreeNotForMarkdown(t *testing.T) {
 	app.ShowTree()
 	if app.TreeShowing() {
 		t.Error("ShowTree showed the tree of a Markdown document")
+	}
+}
+
+func TestTreeAnimates(t *testing.T) {
+	app, hall, lamp, shout := treeApp(t)
+	treeZoomTime, treeSlideTime = 50*time.Millisecond, 50*time.Millisecond
+	settle := func() {
+		time.Sleep(60 * time.Millisecond)
+		app.Update()
+	}
+
+	// It zooms out from the current page, shown as it was.
+	app.ShowTree()
+	r, _ := app.treeRect(shout)
+	if c := app.tree.camera.from; c != app.zoomOn(r) || c.Scale != 2 {
+		t.Errorf("the tree zooms out from %v, want %v", c, app.zoomOn(r))
+	}
+	if !app.Animating() {
+		t.Error("the tree isn't animating as it zooms out")
+	}
+	settle()
+	if app.tree.camera.moving(time.Now()) || app.tree.camera.at(time.Now()) != canvas.Identity {
+		t.Error("the tree didn't stop zooming out")
+	}
+
+	// Moving slides the frames from where they were: the page selected
+	// before from the middle, and the parent, which stays, not at all.
+	before, _ := app.treeRect(shout)
+	hallBefore, _ := app.treeRect(hall)
+	press(app, "Left")
+	start := app.tree.slide.start
+	for _, f := range []struct {
+		id   string
+		want image.Rectangle
+	}{{shout, before}, {hall, hallBefore}} {
+		r, _ := app.treeRect(f.id)
+		if got := app.tree.slide.at(f.id, r, start); got != f.want {
+			t.Errorf("page %s starts sliding at %v, want %v", f.id, got, f.want)
+		}
+	}
+	settle()
+
+	// Opening zooms in on the page, then opens it.
+	press(app, "Enter")
+	if !app.TreeShowing() || pageID(app) != shout {
+		t.Fatal("Enter opened the page before zooming in on it")
+	}
+	settle()
+	if app.TreeShowing() || pageID(app) != lamp {
+		t.Errorf("after zooming in, page %s shows, want %s", pageID(app), lamp)
 	}
 }
