@@ -181,21 +181,14 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 			fill(in, image.Rect(q.X-w/2, mid, q.X-w/2+w, q.Y), accent)
 		}
 	}
-	// The dots: brighter for the pages the tiles show, the page the view
-	// was opened from in the accent color, and the selected page ringed.
-	shown := map[string]bool{}
-	for _, f := range a.treeFrames(a.bounds) {
-		shown[f.id] = true
-	}
+	// The dots: the page the view was opened from in the accent color,
+	// and the selected page ringed.
 	hovered := m.dotAt(a.pointer)
 	if !a.hasPointer {
 		hovered = ""
 	}
 	for id := range t.pages {
 		clr := theme.ThematicBreakColor
-		if shown[id] {
-			clr = theme.TextColor
-		}
 		if id == t.start && a.experiment("tree-path") {
 			clr = accent
 		}
