@@ -23,7 +23,7 @@ import (
 // a link.
 var WelcomeURL = &url.URL{Scheme: "whynot", Opaque: "welcome"}
 
-// Version is set via -X github.com/arnodel/whynot/browser/internal/browser.Version=...
+// Version is set via -X github.com/arnodel/whymark/internal/browser.Version=...
 // at build time (see .goreleaser.yml) - "dev" for an ordinary local
 // build. Shown on the welcome page (see renderWelcome's {{VERSION}}
 // substitution), which puts it in the window title too, since that's

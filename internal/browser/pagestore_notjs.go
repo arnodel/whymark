@@ -5,7 +5,7 @@ package browser
 import (
 	"path/filepath"
 
-	"github.com/arnodel/whynot/browser/internal/whymark"
+	"github.com/arnodel/whymark/internal/whymark"
 )
 
 // openPageStore opens the store of whymark pages in dir: a SQLite

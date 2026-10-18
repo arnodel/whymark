@@ -41,7 +41,7 @@ import (
 
 	rt "github.com/arnodel/golua/runtime"
 
-	"github.com/arnodel/whynot/browser/internal/whymark"
+	"github.com/arnodel/whymark/internal/whymark"
 )
 
 // A Provider answers requests: an AI, reached through its API, or a test's

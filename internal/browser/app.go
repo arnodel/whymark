@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/arnodel/whynot"
-	"github.com/arnodel/whynot/browser/internal/whymark"
+	"github.com/arnodel/whymark/internal/whymark"
 	"github.com/arnodel/whynot/codeblocks/chromahighlight"
 	"github.com/arnodel/whynot/codeblocks/kroki"
 	"github.com/arnodel/whynot/fetch"

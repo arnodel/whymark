@@ -6,7 +6,7 @@ import (
 
 	"github.com/arnodel/whynot"
 	"github.com/arnodel/whynot/backends/ebitenbackend"
-	"github.com/arnodel/whynot/browser/internal/browser"
+	"github.com/arnodel/whymark/internal/browser"
 	"github.com/arnodel/whynot/fonts"
 )
 

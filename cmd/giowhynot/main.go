@@ -19,8 +19,8 @@ import (
 
 	"github.com/arnodel/whynot"
 	"github.com/arnodel/whynot/backends/giobackend"
-	"github.com/arnodel/whynot/browser/internal/browser"
-	"github.com/arnodel/whynot/browser/internal/whymark/ai/anthropic"
+	"github.com/arnodel/whymark/internal/browser"
+	"github.com/arnodel/whymark/internal/whymark/ai/anthropic"
 	"github.com/arnodel/whynot/fonts"
 	"github.com/arnodel/whynot/styles/simpletheme"
 )

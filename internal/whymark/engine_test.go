@@ -17,7 +17,7 @@ import (
 
 	rt "github.com/arnodel/golua/runtime"
 
-	"github.com/arnodel/whynot/browser/internal/whymark/compile"
+	"github.com/arnodel/whymark/internal/whymark/compile"
 	"github.com/arnodel/whynot/fetch"
 )
 

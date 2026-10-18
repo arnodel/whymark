@@ -1,4 +1,4 @@
-module github.com/arnodel/whynot/browser
+module github.com/arnodel/whymark
 
 go 1.26.0
 

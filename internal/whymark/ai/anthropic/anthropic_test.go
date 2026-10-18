@@ -13,7 +13,7 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go/option"
 
-	"github.com/arnodel/whynot/browser/internal/whymark/ai"
+	"github.com/arnodel/whymark/internal/whymark/ai"
 )
 
 // server answers each request with an event stream of the text in pieces,

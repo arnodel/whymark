@@ -8,7 +8,7 @@ with a Gio-native toolbar and Gio's own scrollbar. It's a full program built on 
 ## Install
 
 ```bash
-go install github.com/arnodel/whynot/browser/cmd/giowhynot@latest
+go install github.com/arnodel/whymark/cmd/giowhynot@latest
 ```
 
 Gio needs a few system libraries on Linux: see

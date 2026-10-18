@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/arnodel/whynot/browser/internal/whymark/ai"
+	"github.com/arnodel/whymark/internal/whymark/ai"
 )
 
 // cannedAI answers every request with the same text.

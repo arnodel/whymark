@@ -5,7 +5,7 @@ package browser
 import (
 	"errors"
 
-	"github.com/arnodel/whynot/browser/internal/whymark"
+	"github.com/arnodel/whymark/internal/whymark"
 )
 
 // openPageStore isn't available in a web page, which has no files.

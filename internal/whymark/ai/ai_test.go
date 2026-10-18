@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/arnodel/whynot/browser/internal/whymark"
+	"github.com/arnodel/whymark/internal/whymark"
 	"github.com/arnodel/whynot/fetch"
 )
 

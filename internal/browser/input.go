@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/arnodel/whynot/browser/internal/whymark"
+	"github.com/arnodel/whymark/internal/whymark"
 )
 
 // A whymark page asks for the reader's text with an input block: a fenced

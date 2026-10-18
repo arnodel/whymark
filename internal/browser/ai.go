@@ -3,8 +3,8 @@ package browser
 import (
 	"net/url"
 
-	"github.com/arnodel/whynot/browser/internal/whymark"
-	"github.com/arnodel/whynot/browser/internal/whymark/ai"
+	"github.com/arnodel/whymark/internal/whymark"
+	"github.com/arnodel/whymark/internal/whymark/ai"
 )
 
 // EnableAI gives whymark documents declaring the AI capability an AI to

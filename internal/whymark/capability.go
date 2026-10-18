@@ -14,7 +14,7 @@ import (
 	rt "github.com/arnodel/golua/runtime"
 	"github.com/arnodel/golua/safeio"
 
-	"github.com/arnodel/whynot/browser/internal/whymark/compile"
+	"github.com/arnodel/whymark/internal/whymark/compile"
 )
 
 // A Capability is something a document can't do by itself, such as asking

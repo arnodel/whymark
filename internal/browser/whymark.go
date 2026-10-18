@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/arnodel/whynot"
-	"github.com/arnodel/whynot/browser/internal/whymark"
-	"github.com/arnodel/whynot/browser/internal/whymark/compile"
+	"github.com/arnodel/whymark/internal/whymark"
+	"github.com/arnodel/whymark/internal/whymark/compile"
 )
 
 // whymarkPage is what the browser keeps of a page of a whymark document:

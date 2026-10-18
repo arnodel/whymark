@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	"github.com/arnodel/whynot"
-	"github.com/arnodel/whynot/browser/internal/whymark"
+	"github.com/arnodel/whymark/internal/whymark"
 )
 
 // A whymark document's state lives in its pages. With persistence on, the

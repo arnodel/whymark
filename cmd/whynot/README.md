@@ -14,7 +14,7 @@ brew install arnodel/tap/whynot
 or download a [release binary](https://github.com/arnodel/whynot/releases/latest), or
 
 ```bash
-go install github.com/arnodel/whynot/browser/cmd/whynot@latest
+go install github.com/arnodel/whymark/cmd/whynot@latest
 ```
 
 On macOS, from a checkout, `make mac-app` in [`browser`](../..) makes `build/WhyNot.app`: a

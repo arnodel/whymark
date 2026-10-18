@@ -1,0 +1,10 @@
+# Local development against checkouts of whynot, next to this one.
+go.work
+go.work.sum
+/build
+/cmd/whynot/whynot
+/cmd/giowhynot/giowhynot
+/cmd/whynot/web/whynot.wasm
+/cmd/whynot/web/giowhynot
+/cmd/giowhynot/web/giowhynot.wasm
+/cmd/giowhynot/web/wasm_exec.js
