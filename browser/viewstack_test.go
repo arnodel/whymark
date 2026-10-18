@@ -20,7 +20,10 @@ import (
 
 // recorder is a canvas.Canvas that records what's drawn on it, instead
 // of drawing. A canvas from Clip records into the one it was clipped from.
+// The Canvas methods these tests don't use come from the embedded
+// interface, which is nil: calling one panics.
 type recorder struct {
+	canvas.Canvas
 	Area  image.Rectangle
 	Texts []recordedText
 	Rects []recordedRect
@@ -55,9 +58,6 @@ func (c *recorder) DrawRect(x, y, w, h int, clr color.Color) {
 }
 func (c *recorder) Clip(r image.Rectangle) canvas.Canvas {
 	return &recorder{Area: r.Intersect(c.Area), root: c.out()}
-}
-func (c *recorder) Transform(t canvas.Transform) canvas.Canvas {
-	panic("not used by these tests")
 }
 
 // separatorColor is the stacks' separator color in these tests, unlike
