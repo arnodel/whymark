@@ -366,8 +366,13 @@ func (a *App) HandleEvents(events []whynot.Event) {
 // CanGoBack/CanGoForward report whether Back/Forward would do
 // anything. CanGoBack is also true while the TOC is showing, since Back
 // dismisses it (see overlaid); CanGoForward is false there instead.
-func (a *App) CanGoBack() bool    { return a.tree != nil || a.overlaid != nil || len(a.history) > 0 }
-func (a *App) CanGoForward() bool { return a.overlaid == nil && len(a.future) > 0 }
+func (a *App) CanGoBack() bool { return a.tree != nil || a.overlaid != nil || len(a.history) > 0 }
+func (a *App) CanGoForward() bool {
+	if a.tree != nil {
+		return len(a.tree.undone) > 0
+	}
+	return a.overlaid == nil && len(a.future) > 0
+}
 
 // CanReload reports whether Reload would do anything.
 func (a *App) CanReload() bool { return a.overlaid == nil }
@@ -712,7 +717,7 @@ func samePage(x, y *url.URL) bool {
 // without consuming a history entry.
 func (a *App) Back() {
 	if a.tree != nil {
-		a.HideTree()
+		a.treeBack()
 		return
 	}
 	if a.overlaid != nil {
@@ -732,6 +737,10 @@ func (a *App) Back() {
 // browser's own forward button. Also a no-op while the TOC is showing,
 // unlike Back - disabled rather than dismissing it too.
 func (a *App) Forward() {
+	if a.tree != nil {
+		a.treeForward()
+		return
+	}
 	if a.overlaid != nil || len(a.future) == 0 {
 		return
 	}

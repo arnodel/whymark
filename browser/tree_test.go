@@ -282,3 +282,62 @@ func TestTreeLabel(t *testing.T) {
 		t.Errorf("the age of no time is %q", got)
 	}
 }
+
+func TestTreeBackForward(t *testing.T) {
+	app, hall, lamp, shout := treeApp(t)
+	app.ShowTree()
+	press(app, "Left")
+	press(app, "Up")
+	for _, step := range []struct {
+		do   func()
+		want string
+	}{
+		{app.Back, lamp},
+		{app.Back, shout},
+		{app.Forward, lamp},
+		{app.Forward, hall},
+		{app.Back, lamp},
+	} {
+		step.do()
+		if app.tree.selected != step.want {
+			t.Fatalf("%s is selected, want %s", app.tree.selected, step.want)
+		}
+	}
+	if !app.CanGoForward() {
+		t.Error("can't go forward to a move Back undid")
+	}
+	press(app, "Right") // a new move: nothing to redo
+	if app.CanGoForward() {
+		t.Error("can go forward after a new move")
+	}
+	app.Back()
+	app.Back()
+	if app.tree.selected != shout {
+		t.Fatalf("after undoing every move, %s is selected, want %s", app.tree.selected, shout)
+	}
+	app.Back() // nothing to undo: closes
+	if app.TreeShowing() || pageID(app) != shout {
+		t.Error("Back with no move to undo didn't close the tree on the page it was opened from")
+	}
+}
+
+func TestTreePath(t *testing.T) {
+	app, hall, lamp, shout := treeApp(t)
+	app.ShowTree()
+	press(app, "Left")
+	if got := app.tree.path(); len(got) != 3 || !got[lamp] || !got[hall] || !got[shout] {
+		t.Errorf("the path from the shout's page to the lamp's is %v", got)
+	}
+	_, path := app.treeLines(app.shownFrames(time.Now()))
+	if len(path) != 4 { // the parent's line, bent in three, and the row's
+		t.Errorf("%d lines on the path, want 4", len(path))
+	}
+	press(app, "2") // the second experiment: the path
+	if _, path := app.treeLines(app.shownFrames(time.Now())); len(path) != 0 {
+		t.Errorf("%d lines on the path with it turned off", len(path))
+	}
+	press(app, "Right")
+	if got := app.tree.path(); len(got) != 1 || !got[shout] {
+		t.Errorf("the path from a page to itself is %v", got)
+	}
+}

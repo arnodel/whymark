@@ -124,7 +124,7 @@ func (a *App) PressKey(k Key) bool {
 	}
 	for _, c := range commands {
 		if slices.ContainsFunc(c.keys, func(ck Key) bool { ck.Repeats = false; return ck == k }) {
-			if c.closes && c.name != "tree" {
+			if c.closes && !slices.Contains([]string{"tree", "back", "forward"}, c.name) {
 				a.HideTree()
 			}
 			c.run(a)

@@ -17,6 +17,7 @@ type experiment struct {
 // experiments are the features being tried out.
 var experiments = []experiment{
 	{name: "tree-labels", text: "Labels in the tree of pages", on: true},
+	{name: "tree-path", text: "The way back in the tree of pages", on: true},
 }
 
 // experiment reports whether the experiment name is on.

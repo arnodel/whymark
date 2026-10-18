@@ -35,6 +35,10 @@ type tree struct {
 	// selected is the page in the middle, and start the page the view was
 	// opened from.
 	selected, start string
+	// moves are the pages selected before, oldest first, for Back to
+	// return to, and undone the moves Back undid, most recent last, for
+	// Forward to make again.
+	moves, undone []string
 	// views are the pages' Views, by id, as they're shown in their
 	// frames: the page's own if this window has shown it, or else loaded
 	// (see loadThumb), with a stand-in until then.
@@ -282,6 +286,47 @@ func (a *App) selectPage(id string) {
 	t.slide = treeSlide{from: from, d: d, start: now, length: treeSlideTime}
 }
 
+// movePage selects page id in the tree view, as a move the reader made,
+// which Back undoes.
+func (a *App) movePage(id string) {
+	t := a.tree
+	if id == t.selected {
+		return
+	}
+	t.moves = append(t.moves, t.selected)
+	t.undone = nil
+	a.selectPage(id)
+}
+
+// treeBack undoes the last move in the tree view, or closes it, zooming in
+// on the page it was opened from, if there's none to undo.
+func (a *App) treeBack() {
+	t := a.tree
+	if t.closing != nil {
+		return
+	}
+	if len(t.moves) == 0 {
+		a.closeTree(t.start, func() {})
+		return
+	}
+	prev := t.moves[len(t.moves)-1]
+	t.moves = t.moves[:len(t.moves)-1]
+	t.undone = append(t.undone, t.selected)
+	a.selectPage(prev)
+}
+
+// treeForward makes the last move Back undid again.
+func (a *App) treeForward() {
+	t := a.tree
+	if t.closing != nil || len(t.undone) == 0 {
+		return
+	}
+	next := t.undone[len(t.undone)-1]
+	t.undone = t.undone[:len(t.undone)-1]
+	t.moves = append(t.moves, t.selected)
+	a.selectPage(next)
+}
+
 // treeKey handles k while the tree of pages shows, reporting whether it
 // was one of the tree's keys.
 func (a *App) treeKey(k Key) bool {
@@ -296,11 +341,11 @@ func (a *App) treeKey(k Key) bool {
 	switch k.Name {
 	case "Up":
 		if parent := t.pages[t.selected].Parent; parent != "" {
-			a.selectPage(parent)
+			a.movePage(parent)
 		}
 	case "Down":
 		if child := t.preferredChild(t.selected); child != "" {
-			a.selectPage(child)
+			a.movePage(child)
 		}
 	case "Left", "Right":
 		siblings := t.children[t.pages[t.selected].Parent]
@@ -311,7 +356,7 @@ func (a *App) treeKey(k Key) bool {
 			i++
 		}
 		if i >= 0 && i < len(siblings) {
-			a.selectPage(siblings[i])
+			a.movePage(siblings[i])
 		}
 	case "Enter":
 		a.OpenSelected()
@@ -452,43 +497,92 @@ func (a *App) shownFrames(now time.Time) []treeFrame {
 	return frames
 }
 
+// path returns the pages on the tree's path from the page the view was
+// opened from to the selected one: up to the first page they both come
+// from, and down again.
+func (t *tree) path() map[string]bool {
+	ancestors := map[string]bool{}
+	for p := t.start; p != ""; p = t.pages[p].Parent {
+		ancestors[p] = true
+	}
+	path := map[string]bool{}
+	common := ""
+	for p := t.selected; p != ""; p = t.pages[p].Parent {
+		path[p] = true
+		if ancestors[p] {
+			common = p
+			break
+		}
+	}
+	for p := t.start; p != common && p != ""; p = t.pages[p].Parent {
+		path[p] = true
+	}
+	return path
+}
+
 // treeLines returns the lines of the tree view, as rectangles to fill,
 // between frames, which are where they're shown: one joining each row of
 // siblings, and one from the selected page up to its parent and down to
-// the child Down selects, bent while they're not in line.
-func (a *App) treeLines(frames []treeFrame) []image.Rectangle {
+// the child Down selects, bent while they're not in line. Those on the
+// tree's path from the page the view was opened from (see tree.path) are
+// in path instead, thicker, if the tree-path experiment is on.
+func (a *App) treeLines(frames []treeFrame) (lines, path []image.Rectangle) {
 	t := a.tree
-	thick := max(1, int(a.deviceScale))
+	thin := max(1, int(a.deviceScale))
 	at := map[string]image.Rectangle{}
 	for _, f := range frames {
 		at[f.id] = f.rect
 	}
-	var lines []image.Rectangle
-	link := func(top, bottom image.Rectangle) {
-		x1 := top.Min.X + top.Dx()/2 - thick/2
-		x2 := bottom.Min.X + bottom.Dx()/2 - thick/2
-		y := (top.Max.Y+bottom.Min.Y)/2 - thick/2
-		lines = append(lines,
-			image.Rect(x1, top.Max.Y, x1+thick, y+thick),
-			image.Rect(min(x1, x2), y, max(x1, x2)+thick, y+thick),
-			image.Rect(x2, y, x2+thick, bottom.Min.Y))
+	var on map[string]bool
+	if a.experiment("tree-path") {
+		on = t.path()
+	}
+	// add adds a line to lines, or to path if it's on, as thick as it
+	// then is: thick is a function of it, for rectangles centred on it.
+	add := func(onPath bool, line func(thick int) []image.Rectangle) {
+		if onPath {
+			path = append(path, line(3*thin)...)
+		} else {
+			lines = append(lines, line(thin)...)
+		}
+	}
+	link := func(onPath bool, top, bottom image.Rectangle) {
+		add(onPath, func(thick int) []image.Rectangle {
+			x1 := top.Min.X + top.Dx()/2 - thick/2
+			x2 := bottom.Min.X + bottom.Dx()/2 - thick/2
+			y := (top.Max.Y+bottom.Min.Y)/2 - thick/2
+			return []image.Rectangle{
+				image.Rect(x1, top.Max.Y, x1+thick, y+thick),
+				image.Rect(min(x1, x2), y, max(x1, x2)+thick, y+thick),
+				image.Rect(x2, y, x2+thick, bottom.Min.Y),
+			}
+		})
 	}
 	sel := at[t.selected]
 	parent := t.pages[t.selected].Parent
 	if parent != "" {
-		link(at[parent], sel)
+		link(on[parent], at[parent], sel)
 	}
 	if child := t.preferredChild(t.selected); child != "" {
-		link(sel, at[child])
+		link(on[child], sel, at[child])
 	}
 	for _, siblings := range [][]string{t.children[parent], t.children[t.selected]} {
+		// Along the selected page's row, the path goes from it, through
+		// the parent's line, to a sibling on it.
+		k, target := slices.Index(siblings, t.selected), -1
+		if k >= 0 && on[parent] {
+			target = slices.IndexFunc(siblings, func(id string) bool { return id != t.selected && on[id] })
+		}
 		for i := 1; i < len(siblings); i++ {
 			l, r := at[siblings[i-1]], at[siblings[i]]
-			y := l.Min.Y + l.Dy()/2 - thick/2
-			lines = append(lines, image.Rect(l.Max.X, y, r.Min.X, y+thick))
+			onPath := target >= 0 && i > min(k, target) && i <= max(k, target)
+			add(onPath, func(thick int) []image.Rectangle {
+				y := l.Min.Y + l.Dy()/2 - thick/2
+				return []image.Rectangle{image.Rect(l.Max.X, y, r.Min.X, y+thick)}
+			})
 		}
 	}
-	return lines
+	return lines, path
 }
 
 // drawTree draws the tree view, through its camera.
@@ -503,8 +597,13 @@ func (a *App) drawTree(dst canvas.Canvas, now time.Duration) {
 	window := dst.Clip(b)
 	dst = window.Transform(camera)
 	frames := a.shownFrames(wall)
-	for _, l := range a.treeLines(frames) {
+	lines, path := a.treeLines(frames)
+	for _, l := range lines {
 		dst.DrawRect(l.Min.X, l.Min.Y, l.Dx(), l.Dy(), line)
+	}
+	accent := a.Panel.View().HighlightColor()
+	for _, l := range path {
+		dst.DrawRect(l.Min.X, l.Min.Y, l.Dx(), l.Dy(), accent)
 	}
 	thick := max(1, int(a.deviceScale))
 	for _, f := range frames {
@@ -521,11 +620,16 @@ func (a *App) drawTree(dst canvas.Canvas, now time.Duration) {
 			X:     float64(f.rect.Min.X) - scale*float64(b.Min.X),
 			Y:     float64(f.rect.Min.Y) - scale*float64(b.Min.Y),
 		}), now)
-		r := f.rect.Inset(-thick)
-		dst.DrawRect(r.Min.X, r.Min.Y, r.Dx(), thick, line)
-		dst.DrawRect(r.Min.X, r.Max.Y-thick, r.Dx(), thick, line)
-		dst.DrawRect(r.Min.X, r.Min.Y, thick, r.Dy(), line)
-		dst.DrawRect(r.Max.X-thick, r.Min.Y, thick, r.Dy(), line)
+		// The page the view was opened from is framed as the path is.
+		clr, frame := line, thick
+		if f.id == t.start && a.experiment("tree-path") {
+			clr, frame = accent, 3*thick
+		}
+		r := f.rect.Inset(-frame)
+		dst.DrawRect(r.Min.X, r.Min.Y, r.Dx(), frame, clr)
+		dst.DrawRect(r.Min.X, r.Max.Y-frame, r.Dx(), frame, clr)
+		dst.DrawRect(r.Min.X, r.Min.Y, frame, r.Dy(), clr)
+		dst.DrawRect(r.Max.X-frame, r.Min.Y, frame, r.Dy(), clr)
 	}
 	if a.experiment("tree-labels") {
 		for _, f := range frames {
@@ -736,7 +840,7 @@ func (a *App) treeInput(events []input.Event) {
 				a.OpenSelected()
 				return
 			}
-			a.selectPage(f.id)
+			a.movePage(f.id)
 			return
 		}
 	}
