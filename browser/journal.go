@@ -62,6 +62,7 @@ func (a *App) ToggleJournal() {
 	if a.overlaid != nil {
 		return
 	}
+	a.HideTree()
 	a.arrival = arrival{}
 	if a.journal != nil {
 		a.journal = nil
@@ -193,6 +194,10 @@ func (a *App) stackColors() (background, separator color.Color) {
 // HandleEvents).
 func (a *App) Frame(events []input.Event, now time.Duration) {
 	a.noteInput(events, now)
+	if a.tree != nil {
+		a.treeInput(events)
+		return
+	}
 	j := a.stacked()
 	if j == nil {
 		a.HandleEvents(a.Panel.Frame(events, now))
@@ -265,6 +270,10 @@ func (a *App) branchFrom(i int, doc *whynot.Document, location *url.URL) {
 // Draw draws what's shown, at now: the current page, or in journal mode
 // the stack.
 func (a *App) Draw(dst canvas.Canvas, now time.Duration) {
+	if a.tree != nil {
+		a.drawTree(dst, now)
+		return
+	}
 	if j := a.stacked(); j != nil {
 		j.stack.Draw(dst, now)
 	} else {
@@ -277,6 +286,9 @@ func (a *App) Draw(dst canvas.Canvas, now time.Duration) {
 // as for a fling or a scrollbar fading out, or while the current page is
 // still arriving, for the waiting dots.
 func (a *App) Animating() bool {
+	if a.tree != nil {
+		return len(a.tree.loading) > 0
+	}
 	if a.overlaid == nil && !a.Panel.View().Document().Complete() {
 		return true
 	}
@@ -289,6 +301,9 @@ func (a *App) Animating() bool {
 // ViewAt returns the View shown at (x, y): the current page's, or in
 // journal mode, the page's there, if any.
 func (a *App) ViewAt(x, y int) (*whynot.View, bool) {
+	if a.tree != nil {
+		return nil, false
+	}
 	j := a.stacked()
 	if j == nil {
 		return a.Panel.View(), image.Pt(x, y).In(a.Panel.Bounds())

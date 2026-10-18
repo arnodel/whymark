@@ -10,8 +10,8 @@ import (
 // A Key is a key press that runs a command: the key's name, and the
 // modifiers held with it. Names are a key's main symbol: a letter or
 // digit in upper case ("J", "0"), a punctuation mark ("[", "=", "/"), or
-// one of "Space", "Backspace", "Escape", "Up", "Down", "Left" and
-// "Right".
+// one of "Space", "Backspace", "Enter", "Escape", "Up", "Down", "Left"
+// and "Right".
 type Key struct {
 	Name string
 	// Shortcut is the platform's modifier for shortcuts: Cmd on macOS,
@@ -53,6 +53,8 @@ func init() {
 		{name: "forward", keys: forwardKeys(), run: (*App).Forward, closes: true},
 		{name: "reload", keys: []Key{{Name: "R", Shortcut: true}}, run: (*App).Reload, closes: true},
 		{name: "toc", keys: []Key{{Name: "T", Shortcut: true}}, run: (*App).ToggleTOC, closes: true},
+		{name: "tree", keys: []Key{{Name: "G", Shortcut: true}}, run: (*App).ToggleTree, closes: true},
+		{name: "open", keys: []Key{{Name: "Enter"}}, run: (*App).OpenSelected},
 		{name: "journal", keys: []Key{{Name: "J", Shortcut: true}}, run: (*App).ToggleJournal, closes: true},
 		{name: "theme", keys: []Key{{Name: "L", Shortcut: true, Shift: true}}, run: func(a *App) { a.SetTheme(!a.darkTheme) }},
 		{name: "zoom-in", keys: []Key{zoomKey("=", true)}, run: (*App).ZoomIn},
@@ -111,11 +113,20 @@ func (a *App) Keys() []Key {
 // PressKey runs the command k runs, if any, reporting whether there was
 // one. A key's command runs as it is, whatever is showing: Back closes
 // an overlay, for instance, as it does from the toolbar.
+//
+// While the tree of pages shows, the arrow keys, Enter and Escape are its
+// own, and a command that changes what's shown closes it first.
 func (a *App) PressKey(k Key) bool {
 	a.touch = false
 	k.Repeats = false
+	if a.tree != nil && a.treeKey(k) {
+		return true
+	}
 	for _, c := range commands {
 		if slices.ContainsFunc(c.keys, func(ck Key) bool { ck.Repeats = false; return ck == k }) {
+			if c.closes && c.name != "tree" {
+				a.HideTree()
+			}
 			c.run(a)
 			return true
 		}
@@ -144,7 +155,7 @@ func (a *App) runCommand(name string) {
 // keyNames is how keys whose name isn't the symbol on them are written.
 var keyNames = map[string]string{
 	"Up": "↑", "Down": "↓", "Left": "←", "Right": "→",
-	"Escape": "Esc", "-": "−",
+	"Escape": "Esc", "Enter": "↵", "-": "−",
 }
 
 // String returns k as a person would write it: "Cmd+J", "Shift+Space".

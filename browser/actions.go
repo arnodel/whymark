@@ -167,6 +167,7 @@ func (a *App) actionsSource() []byte {
 		{link("select-all", a.selectAllText()), keysOf("select-all")},
 		{link("paste", "Open the path or URL in the clipboard"), keysOf("paste")},
 		{unless(!a.CanShowTOC(), "toc", "Show the table of contents"), keysOf("toc")},
+		{unless(!a.CanShowTree(), "tree", "Show the tree of pages"), keysOf("tree")},
 		{link("source", "Show this page's source"), keysOf("source")},
 	})
 	if !keys {

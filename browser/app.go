@@ -178,6 +178,11 @@ type App struct {
 	// first, since that's the overlay, not the document, while it's set.
 	overlaid *whynot.View
 	overlay  overlayKind
+
+	// tree is the view of the tree of pages, if it's showing (see
+	// ShowTree), and treeLoads the pages loaded for it in the background.
+	tree      *tree
+	treeLoads treeLoads
 }
 
 // NewApp constructs an App with no Panel yet and no current location -
@@ -246,6 +251,8 @@ func (a *App) Update() {
 	a.noteVisit()
 	a.loadTrail()
 	a.addTrails()
+	a.addThumbs()
+	a.loadThumbs()
 	if a.overlaid == nil {
 		a.continueArrival()
 	}
@@ -308,7 +315,7 @@ func (a *App) Location() *url.URL { return a.location }
 // against the current document's location, or "" if there's none: what
 // an address bar shows instead of Location while hovering.
 func (a *App) HoverDest() string {
-	if a.Panel == nil {
+	if a.Panel == nil || a.tree != nil {
 		return ""
 	}
 	view, location := a.Panel.View(), a.location
@@ -355,7 +362,7 @@ func (a *App) HandleEvents(events []whynot.Event) {
 // CanGoBack/CanGoForward report whether Back/Forward would do
 // anything. CanGoBack is also true while the TOC is showing, since Back
 // dismisses it (see overlaid); CanGoForward is false there instead.
-func (a *App) CanGoBack() bool    { return a.overlaid != nil || len(a.history) > 0 }
+func (a *App) CanGoBack() bool    { return a.tree != nil || a.overlaid != nil || len(a.history) > 0 }
 func (a *App) CanGoForward() bool { return a.overlaid == nil && len(a.future) > 0 }
 
 // CanReload reports whether Reload would do anything.
@@ -630,6 +637,7 @@ func (a *App) follow(resolved *url.URL) {
 // show makes doc, loaded from location, the current document, pushing
 // the one being left onto history, and scrolls to location's fragment.
 func (a *App) show(doc *whynot.Document, location *url.URL) {
+	a.HideTree()
 	view := a.NewView(doc)
 	a.place(view)
 	a.pushHistory() // must run before SetView - it reads the page being left
@@ -699,6 +707,10 @@ func samePage(x, y *url.URL) bool {
 // - the most recently visited "place" from the user's perspective -
 // without consuming a history entry.
 func (a *App) Back() {
+	if a.tree != nil {
+		a.HideTree()
+		return
+	}
 	if a.overlaid != nil {
 		a.hideOverlay()
 		return
@@ -733,6 +745,7 @@ func (a *App) Forward() {
 // so each rebuild's ratio-preserving cursor logic works from the right
 // position.
 func (a *App) travelTo(entry historyEntry, undoStack *[]historyEntry) {
+	a.HideTree()
 	current := a.Panel.View()
 	*undoStack = append(*undoStack, historyEntry{
 		document: document{location: a.location, view: current},
@@ -755,6 +768,7 @@ func (a *App) Reload() {
 	if a.overlaid != nil {
 		return
 	}
+	a.HideTree()
 	var doc *whynot.Document
 	var err error
 	if p := a.pageOf(a.Panel.View().Document()); p != nil {

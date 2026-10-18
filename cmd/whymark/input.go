@@ -40,6 +40,7 @@ func (g *game) Update() error {
 	// pressed also stays true while the TOC is showing, so the button
 	// reads as "ON" the whole time, not just while physically held down.
 	g.tocState = buttonState{hover: cursor.In(g.tocButton), pressed: (pointerDown && cursor.In(g.tocButton)) || g.app.TOCShowing()}
+	g.treeState = buttonState{hover: cursor.In(g.treeButton), pressed: (pointerDown && cursor.In(g.treeButton)) || g.app.TreeShowing()}
 	g.actionsState = buttonState{hover: cursor.In(g.actionsButton), pressed: (pointerDown && cursor.In(g.actionsButton)) || g.app.ActionsShowing()}
 
 	switch {
@@ -51,6 +52,8 @@ func (g *game) Update() error {
 		g.app.Reload()
 	case clicked && g.tocState.hover:
 		g.app.ToggleTOC()
+	case clicked && g.treeState.hover:
+		g.app.ToggleTree()
 	case clicked && g.actionsState.hover:
 		g.app.ToggleActions()
 	}
@@ -83,10 +86,10 @@ var ebitenCursors = map[whynot.Cursor]ebiten.CursorShapeType{
 
 // ebitenKeys are the ebiten keys of browser.Key names.
 var ebitenKeys = map[string]ebiten.Key{
-	"A": ebiten.KeyA, "C": ebiten.KeyC, "J": ebiten.KeyJ, "L": ebiten.KeyL, "R": ebiten.KeyR, "T": ebiten.KeyT, "V": ebiten.KeyV,
+	"A": ebiten.KeyA, "C": ebiten.KeyC, "G": ebiten.KeyG, "J": ebiten.KeyJ, "L": ebiten.KeyL, "R": ebiten.KeyR, "T": ebiten.KeyT, "V": ebiten.KeyV,
 	"0": ebiten.KeyDigit0, "[": ebiten.KeyBracketLeft, "]": ebiten.KeyBracketRight,
 	"=": ebiten.KeyEqual, "-": ebiten.KeyMinus, "/": ebiten.KeySlash,
-	"Space": ebiten.KeySpace, "Backspace": ebiten.KeyBackspace, "Escape": ebiten.KeyEscape,
+	"Space": ebiten.KeySpace, "Backspace": ebiten.KeyBackspace, "Enter": ebiten.KeyEnter, "Escape": ebiten.KeyEscape,
 	"Up": ebiten.KeyArrowUp, "Down": ebiten.KeyArrowDown, "Left": ebiten.KeyArrowLeft, "Right": ebiten.KeyArrowRight,
 }
 

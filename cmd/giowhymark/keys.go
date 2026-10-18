@@ -12,6 +12,7 @@ import (
 var gioKeyNames = map[string]key.Name{
 	"Space":     key.NameSpace,
 	"Backspace": key.NameDeleteBackward,
+	"Enter":     key.NameReturn,
 	"Escape":    key.NameEscape,
 	"Up":        key.NameUpArrow,
 	"Down":      key.NameDownArrow,

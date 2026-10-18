@@ -190,6 +190,9 @@ func (a *App) addHeaders() {
 	headers := a.headers
 	a.headers = nil
 	a.headersMu.Unlock()
+	if a.tree != nil && len(headers) > 0 {
+		a.listPages() // a new page, made while the tree shows
+	}
 	for _, arrived := range headers {
 		p := a.pages[arrived.doc]
 		if p == nil {

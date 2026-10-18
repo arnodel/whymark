@@ -19,6 +19,7 @@ var (
 	forwardIcon = toEbitenIcon(browser.ForwardIcon)
 	reloadIcon  = toEbitenIcon(browser.ReloadIcon)
 	tocIcon     = toEbitenIcon(browser.TOCIcon)
+	treeIcon    = toEbitenIcon(browser.TreeIcon)
 	actionsIcon = toEbitenIcon(browser.ActionsIcon)
 	micIcon     = toEbitenIcon(browser.MicIcon)
 	sendIcon    = toEbitenIcon(browser.SendIcon)

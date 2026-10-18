@@ -29,6 +29,7 @@ func (g *game) layoutToolbar() {
 	g.forwardButton = nextButton()
 	g.reloadButton = nextButton()
 	g.tocButton = nextButton()
+	g.treeButton = nextButton()
 
 	// The actions button (zoom, the theme and everything else) sits at
 	// the toolbar's right corner, as a "more" menu usually does, apart
