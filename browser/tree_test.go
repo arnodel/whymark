@@ -217,6 +217,7 @@ func TestTreeAnimates(t *testing.T) {
 func TestTreeLabels(t *testing.T) {
 	app, _, _, _ := treeApp(t)
 	app.Relayout(1024, 700, 1, 0)
+	app.toggleExperiment("tree-map") // its own label of the selected page
 	app.ShowTree()
 	texts := func() string {
 		r := &recorder{Area: app.Bounds()}
@@ -468,5 +469,42 @@ func TestTreeBusPath(t *testing.T) {
 	press(app, "Down")
 	if app.tree.selected == shout || lit() != 0 {
 		t.Errorf("on the page the view was opened from, %d lines on the path", lit())
+	}
+}
+
+func TestTreeMap(t *testing.T) {
+	app, hall, lamp, shout := treeApp(t)
+	app.Relayout(1024, 700, 1, 0)
+	app.ShowTree()
+	m, ok := app.treeMapGeometry()
+	if !ok {
+		t.Fatal("the map isn't shown")
+	}
+	// The hall is centred over its children, the lamp's page on the left.
+	h, l, s := m.at(hall), m.at(lamp), m.at(shout)
+	if l.Y != s.Y || h.Y >= l.Y || l.X >= s.X || h.X != (l.X+s.X)/2 {
+		t.Errorf("the map places the hall at %v, the lamp's page at %v and the shout's at %v", h, l, s)
+	}
+	// It stays put as the selection moves.
+	press(app, "Left")
+	if m2, _ := app.treeMapGeometry(); m2.at(hall) != h {
+		t.Errorf("moving the selection moved the map's hall from %v to %v", h, m2.at(hall))
+	}
+	// Pointing at a dot shows its page; clicking it selects it.
+	app.Frame([]input.Event{input.PointerMove{X: s.X, Y: s.Y}}, 0)
+	if got := app.mapHovered(); got != shout {
+		t.Errorf("pointing at the shout's dot points at %q", got)
+	}
+	app.Frame([]input.Event{input.PointerButton{X: h.X, Y: h.Y, Button: input.ButtonPrimary, Down: true}}, 0)
+	if app.tree.selected != hall {
+		t.Errorf("clicking the hall's dot selected %s", app.tree.selected)
+	}
+	app.Back()
+	if app.tree.selected != lamp {
+		t.Errorf("Back after clicking a dot selected %s, want %s", app.tree.selected, lamp)
+	}
+	press(app, "4") // the fourth experiment: the map
+	if _, ok := app.treeMapGeometry(); ok {
+		t.Error("the map is shown with it turned off")
 	}
 }

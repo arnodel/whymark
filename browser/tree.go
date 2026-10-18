@@ -43,6 +43,11 @@ type tree struct {
 	// id, so that going up keeps the row of children where it was (see
 	// preferredChild).
 	lastChild map[string]string
+	// mapX and mapDepth place each page on the map (see layoutMap), which
+	// is mapLeaves wide and mapRows deep.
+	mapX               map[string]float64
+	mapDepth           map[string]int
+	mapLeaves, mapRows int
 	// views are the pages' Views, by id, as they're shown in their
 	// frames: the page's own if this window has shown it, or else loaded
 	// (see loadThumb), with a stand-in until then.
@@ -203,6 +208,7 @@ func (a *App) listPages() {
 		t.pages[id] = info
 		t.children[""] = append(t.children[""], id)
 	}
+	t.layoutMap()
 }
 
 // HideTree closes the view of the tree of pages at once, leaving the
@@ -758,16 +764,7 @@ func (a *App) drawTree(dst canvas.Canvas, now time.Duration) {
 		if !f.rect.Overlaps(shown) {
 			continue
 		}
-		v := a.treeView(f.id)
-		if v.Bounds() != b || v.Scale() != a.deviceScale || v.Zoom() != a.zoom {
-			a.place(v)
-		}
-		scale := float64(f.rect.Dx()) / float64(b.Dx())
-		v.Draw(dst.Clip(f.rect).Transform(canvas.Transform{
-			Scale: scale,
-			X:     float64(f.rect.Min.X) - scale*float64(b.Min.X),
-			Y:     float64(f.rect.Min.Y) - scale*float64(b.Min.Y),
-		}), now)
+		a.drawThumb(dst, f.id, f.rect, now)
 		// The pages on the path are framed as it is, and the page the view
 		// was opened from, where it leads, thicker.
 		clr, frame := line, thick
@@ -790,6 +787,27 @@ func (a *App) drawTree(dst canvas.Canvas, now time.Duration) {
 			}
 		}
 	}
+	// The map shows once the camera is still, so that zooming out starts
+	// from the page as it was.
+	if t.closing == nil && !t.camera.moving(wall) {
+		a.drawTreeMap(window, wall, now)
+	}
+}
+
+// drawThumb draws page id in r, a frame half the window's size or smaller,
+// as it is in the window, scaled down.
+func (a *App) drawThumb(dst canvas.Canvas, id string, r image.Rectangle, now time.Duration) {
+	b := a.bounds
+	v := a.treeView(id)
+	if v.Bounds() != b || v.Scale() != a.deviceScale || v.Zoom() != a.zoom {
+		a.place(v)
+	}
+	scale := float64(r.Dx()) / float64(b.Dx())
+	v.Draw(dst.Clip(r).Transform(canvas.Transform{
+		Scale: scale,
+		X:     float64(r.Min.X) - scale*float64(b.Min.X),
+		Y:     float64(r.Min.Y) - scale*float64(b.Min.Y),
+	}), now)
 }
 
 // drawTreeLabel draws the label of page id on its frame, r on the window,
@@ -797,17 +815,11 @@ func (a *App) drawTree(dst canvas.Canvas, now time.Duration) {
 // window's text whatever the frame's: what was typed for the page, or else
 // its title, and how long ago it was made.
 func (a *App) drawTreeLabel(dst canvas.Canvas, id string, r image.Rectangle, now time.Time) {
-	face, err := a.faceSelector.SelectFace(fonts.TextStyle{Size: 13}, a.deviceScale*72)
-	if err != nil {
+	face, h, pad, ok := a.treeLabelFace()
+	if !ok {
 		return
 	}
-	theme := simpletheme.Light()
-	if a.darkTheme {
-		theme = simpletheme.Dark()
-	}
-	pad := int(6 * a.deviceScale)
-	m := face.Metrics()
-	h := (m.Ascent + m.Descent).Ceil() + 2*pad
+	theme := a.treeTheme()
 	r = r.Intersect(a.bounds)
 	if r.Dx() < 4*h || r.Dy() < 2*h {
 		return // too small to say anything
@@ -822,6 +834,26 @@ func (a *App) drawTreeLabel(dst canvas.Canvas, id string, r image.Rectangle, now
 	dst.DrawText(age, face, ageX, baseline, theme.ThematicBreakColor)
 	label := truncateEnd(face, treeLabel(info), ageX-pad-(bar.Min.X+pad))
 	dst.DrawText(label, face, bar.Min.X+pad, baseline, theme.TextColor)
+}
+
+// treeLabelFace returns the face of the tree view's labels, the height of
+// their bars, and the padding in them.
+func (a *App) treeLabelFace() (face font.Face, height, pad int, ok bool) {
+	face, err := a.faceSelector.SelectFace(fonts.TextStyle{Size: 13}, a.deviceScale*72)
+	if err != nil {
+		return nil, 0, 0, false
+	}
+	pad = int(6 * a.deviceScale)
+	m := face.Metrics()
+	return face, (m.Ascent + m.Descent).Ceil() + 2*pad, pad, true
+}
+
+// treeTheme returns the colors of the tree view.
+func (a *App) treeTheme() *simpletheme.Theme {
+	if a.darkTheme {
+		return simpletheme.Dark()
+	}
+	return simpletheme.Light()
 }
 
 // treeLabel returns what tells page p apart in the tree of pages: what was
@@ -905,12 +937,19 @@ func (a *App) loadThumbs() {
 	if t == nil {
 		return
 	}
+	var ids []string
 	for _, f := range a.treeFrames(a.bounds) {
-		if _, ok := t.views[f.id]; ok || t.loading[f.id] {
+		ids = append(ids, f.id)
+	}
+	if id := a.mapHovered(); id != "" {
+		ids = append(ids, id) // for the map's card
+	}
+	for _, id := range ids {
+		if _, ok := t.views[id]; ok || t.loading[id] {
 			continue
 		}
-		t.loading[f.id] = true
-		engine, id, notify := a.engine, f.id, a.OnDocumentChange
+		t.loading[id] = true
+		engine, notify := a.engine, a.OnDocumentChange
 		go func() {
 			loaded := loadedThumb{tree: t, id: id}
 			r, req, err := engine.Saved(context.Background(), id)
@@ -981,6 +1020,13 @@ func (a *App) treeInput(events []input.Event) {
 			at = image.Pt(e.X, e.Y)
 		default:
 			continue
+		}
+		if m, ok := a.treeMapGeometry(); ok && at.In(m.rect) {
+			// The map is over the tiles: a click on it is its.
+			if id := m.dotAt(at); id != "" {
+				a.movePage(id)
+			}
+			return
 		}
 		x, y := camera.Apply(float64(at.X), float64(at.Y))
 		at = image.Pt(int(x), int(y))
