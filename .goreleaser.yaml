@@ -1,0 +1,147 @@
+# GoReleaser configuration for whymark
+# See: https://goreleaser.com
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: whymark
+    main: ./cmd/whymark
+    binary: whymark
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    # Windows on arm64 is niche and untested here.
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      # Strip debug info for smaller binaries; embed the release version
+      # (shown on the welcome page - see browser.Version); suppress the
+      # console window that would otherwise flash open behind the GUI
+      # on Windows (ebitengine/hideconsole, already a dependency, also
+      # hides it at runtime - this avoids the flash in the first place).
+      - -s -w
+      - -X github.com/arnodel/whymark/internal/browser.Version={{ .Version }}
+      - '{{ if eq .Os "windows" }}-H=windowsgui{{ end }}'
+
+archives:
+  - id: whymark-archive
+    ids:
+      - whymark
+    formats:
+      - zip
+    format_overrides:
+      - goos: linux
+        formats:
+          - tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- if eq .Os "darwin" }}macOS
+      {{- else }}{{ .Os }}{{ end }}_
+      {{- .Arch }}
+    files:
+      - README.md
+      - LICENSE*
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+  groups:
+    # Any type marked breaking with "!" (feat!:, refactor!:, ...), first:
+    # a commit goes in the first group it matches. A scope, such as
+    # (browser), is allowed.
+    - title: "Breaking Changes"
+      regexp: '^[a-z]+(\([a-z]+\))?!:'
+      order: 0
+    - title: "Features"
+      regexp: '^feat(\([a-z]+\))?:'
+      order: 1
+    - title: "Bug Fixes"
+      regexp: '^fix(\([a-z]+\))?:'
+      order: 2
+    - title: "Other Changes"
+      order: 999
+
+release:
+  github:
+    owner: arnodel
+    name: whymark
+  draft: false
+  prerelease: auto
+  name_template: "whymark {{.Version}}"
+  header: |
+    ## whymark {{.Version}}
+    {{ if .Prerelease }}
+    This is a pre-release, so Homebrew still installs the latest
+    release. To try it, download the archive for your platform below,
+    unzip it, and run `whymark` (or `whymark some-file.md`).
+    {{ else }}
+    On macOS:
+    ```bash
+    brew install arnodel/tap/whymark
+    ```
+
+    Otherwise, download the archive for your platform below, unzip it,
+    and run `whymark` (or `whymark some-file.md`).
+    {{ end }}
+    Building from source instead:
+    ```bash
+    go install github.com/arnodel/whymark/cmd/whymark@latest
+    ```
+  footer: |
+    **Full Changelog**: https://github.com/arnodel/whymark/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+# Homebrew tap - publishes to the existing arnodel/homebrew-tap repo
+# (already set up for jsonstream). Needs a TAP_GITHUB_TOKEN secret on
+# this repo: a fine-grained PAT scoped to homebrew-tap only, with
+# Contents (read/write) + Metadata (read) permissions, passed through
+# by .github/workflows/release.yaml.
+homebrew_casks:
+  - name: whymark
+    ids:
+      - whymark-archive
+    repository:
+      owner: arnodel
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    directory: Casks
+    # A pre-release (v1.0.0-rc.1, say) isn't published to the tap, so
+    # brew users only ever get releases.
+    skip_upload: auto
+    description: "A viewer for Markdown and whymark documents: interactive pages written in Markdown"
+    homepage: "https://github.com/arnodel/whymark"
+    license: "Apache-2.0"
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    binaries:
+      - whymark
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/whymark"]
+          end

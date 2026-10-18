@@ -1,0 +1,51 @@
+name: Go
+
+on:
+  # A pull request is tested through pull_request; testing its branch
+  # pushes as well would run the same job twice.
+  push:
+    branches: [main]
+  pull_request:
+
+# Only the latest commit of a branch or PR matters: cancel older runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: 1.26
+
+    # cmd/giowhymark needs Gio's native build dependencies, per
+    # https://gioui.org/doc/install/linux.
+    - name: Install Gio's Linux build dependencies
+      run: sudo apt-get update && sudo apt-get install -y gcc pkg-config libwayland-dev libx11-dev libx11-xcb-dev libxkbcommon-x11-dev libgles2-mesa-dev libegl1-mesa-dev libffi-dev libxcursor-dev libvulkan-dev
+
+    - name: Check formatting
+      run: |
+        unformatted=$(gofmt -l .)
+        if [ -n "$unformatted" ]; then
+          echo "These files need gofmt:"
+          echo "$unformatted"
+          exit 1
+        fi
+
+    - name: Vet
+      run: go vet ./...
+
+    - name: All tests
+      run: go test -race ./...
+
+    - name: Web builds
+      run: |
+        GOOS=js GOARCH=wasm go build -o /dev/null ./cmd/whymark
+        GOOS=js GOARCH=wasm go build -o /dev/null ./cmd/giowhymark

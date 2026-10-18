@@ -1,0 +1,53 @@
+name: Deploy the web viewers to Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one deployment at a time: a newer push cancels an older one's.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.26
+
+      # cmd/whymark/web is the site root, with its index.html and
+      # wasm_exec.js (see its README); giowhymark is served at
+      # giowhymark/, with its own index.html and the same wasm_exec.js.
+      - name: Build whymark.wasm and giowhymark.wasm
+        run: |
+          GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o cmd/whymark/web/whymark.wasm ./cmd/whymark
+          mkdir -p cmd/whymark/web/giowhymark
+          GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o cmd/whymark/web/giowhymark/giowhymark.wasm ./cmd/giowhymark
+          cp cmd/giowhymark/web/index.html cmd/whymark/web/wasm_exec.js cmd/whymark/web/giowhymark/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: cmd/whymark/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
