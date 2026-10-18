@@ -35,7 +35,7 @@ See [the viewer's README](cmd/whymark) for what it can do, and the keys.
 - [`cmd`](cmd) has the viewers, which wire the two together.
 
 Separating them more clearly, with a protocol between the engine and the browser, is planned
-(see [the issues](https://github.com/arnodel/whymark/issues)). See
+in [#1](https://github.com/arnodel/whymark/issues/1). See
 [CONTRIBUTING](CONTRIBUTING.md) for building and testing.
 
 ## License
