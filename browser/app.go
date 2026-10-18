@@ -183,6 +183,9 @@ type App struct {
 	// ShowTree), and treeLoads the pages loaded for it in the background.
 	tree      *tree
 	treeLoads treeLoads
+	// experimentsOn is which experiments were turned on or off (see
+	// experiment).
+	experimentsOn map[string]bool
 }
 
 // NewApp constructs an App with no Panel yet and no current location -

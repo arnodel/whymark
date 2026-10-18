@@ -87,7 +87,8 @@ var ebitenCursors = map[whynot.Cursor]ebiten.CursorShapeType{
 // ebitenKeys are the ebiten keys of browser.Key names.
 var ebitenKeys = map[string]ebiten.Key{
 	"A": ebiten.KeyA, "C": ebiten.KeyC, "G": ebiten.KeyG, "J": ebiten.KeyJ, "L": ebiten.KeyL, "R": ebiten.KeyR, "T": ebiten.KeyT, "V": ebiten.KeyV,
-	"0": ebiten.KeyDigit0, "[": ebiten.KeyBracketLeft, "]": ebiten.KeyBracketRight,
+	"0": ebiten.KeyDigit0, "1": ebiten.KeyDigit1, "2": ebiten.KeyDigit2, "3": ebiten.KeyDigit3,
+	"4": ebiten.KeyDigit4, "5": ebiten.KeyDigit5, "6": ebiten.KeyDigit6, "7": ebiten.KeyDigit7, "8": ebiten.KeyDigit8, "9": ebiten.KeyDigit9, "[": ebiten.KeyBracketLeft, "]": ebiten.KeyBracketRight,
 	"=": ebiten.KeyEqual, "-": ebiten.KeyMinus, "/": ebiten.KeySlash,
 	"Space": ebiten.KeySpace, "Backspace": ebiten.KeyBackspace, "Enter": ebiten.KeyEnter, "Escape": ebiten.KeyEscape,
 	"Up": ebiten.KeyArrowUp, "Down": ebiten.KeyArrowDown, "Left": ebiten.KeyArrowLeft, "Right": ebiten.KeyArrowRight,

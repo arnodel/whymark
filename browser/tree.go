@@ -4,18 +4,25 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	"io"
 	"log"
+	"maps"
 	"net/url"
 	"slices"
+	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/image/font"
 
 	"github.com/arnodel/whymark"
 	"github.com/arnodel/whynot"
 	"github.com/arnodel/whynot/canvas"
+	"github.com/arnodel/whynot/fonts"
 	"github.com/arnodel/whynot/input"
+	"github.com/arnodel/whynot/styles/simpletheme"
 )
 
 // tree is the state of the view of the tree of pages (see ShowTree).
@@ -493,7 +500,8 @@ func (a *App) drawTree(dst canvas.Canvas, now time.Duration) {
 	wall := time.Now()
 	camera := t.camera.at(wall)
 	shown := camera.Invert().ApplyRect(b)
-	dst = dst.Clip(b).Transform(camera)
+	window := dst.Clip(b)
+	dst = window.Transform(camera)
 	frames := a.shownFrames(wall)
 	for _, l := range a.treeLines(frames) {
 		dst.DrawRect(l.Min.X, l.Min.Y, l.Dx(), l.Dy(), line)
@@ -519,6 +527,102 @@ func (a *App) drawTree(dst canvas.Canvas, now time.Duration) {
 		dst.DrawRect(r.Min.X, r.Min.Y, thick, r.Dy(), line)
 		dst.DrawRect(r.Max.X-thick, r.Min.Y, thick, r.Dy(), line)
 	}
+	if a.experiment("tree-labels") {
+		for _, f := range frames {
+			if f.rect.Overlaps(shown) {
+				a.drawTreeLabel(window, f.id, camera.ApplyRect(f.rect), wall)
+			}
+		}
+	}
+}
+
+// drawTreeLabel draws the label of page id on its frame, r on the window,
+// in a bar along the bottom of what's on screen of it, at the size of the
+// window's text whatever the frame's: what was typed for the page, or else
+// its title, and how long ago it was made.
+func (a *App) drawTreeLabel(dst canvas.Canvas, id string, r image.Rectangle, now time.Time) {
+	face, err := a.faceSelector.SelectFace(fonts.TextStyle{Size: 13}, a.deviceScale*72)
+	if err != nil {
+		return
+	}
+	theme := simpletheme.Light()
+	if a.darkTheme {
+		theme = simpletheme.Dark()
+	}
+	pad := int(6 * a.deviceScale)
+	m := face.Metrics()
+	h := (m.Ascent + m.Descent).Ceil() + 2*pad
+	r = r.Intersect(a.bounds)
+	if r.Dx() < 4*h || r.Dy() < 2*h {
+		return // too small to say anything
+	}
+	bar := image.Rect(r.Min.X, r.Max.Y-h, r.Max.X, r.Max.Y)
+	dst.DrawRect(bar.Min.X, bar.Min.Y, bar.Dx(), bar.Dy(), theme.BackgroundColor)
+	dst.DrawRect(bar.Min.X, bar.Min.Y, bar.Dx(), max(1, int(a.deviceScale)), theme.ThematicBreakColor)
+	info := a.tree.pages[id]
+	age := ageOf(info.Time, now)
+	ageX := bar.Max.X - pad - font.MeasureString(face, age).Ceil()
+	baseline := baselineIn(face, bar)
+	dst.DrawText(age, face, ageX, baseline, theme.ThematicBreakColor)
+	label := truncateEnd(face, treeLabel(info), ageX-pad-(bar.Min.X+pad))
+	dst.DrawText(label, face, bar.Min.X+pad, baseline, theme.TextColor)
+}
+
+// treeLabel returns what tells page p apart in the tree of pages: what was
+// typed for it, or else its title.
+func treeLabel(p whymark.PageInfo) string {
+	if len(p.Input) > 0 {
+		names := slices.Sorted(maps.Keys(p.Input))
+		var parts []string
+		for _, name := range names {
+			value := strings.Join(strings.Fields(p.Input[name]), " ")
+			if len(names) > 1 {
+				value = name + ": " + value
+			}
+			parts = append(parts, value)
+		}
+		return "“" + strings.Join(parts, " · ") + "”"
+	}
+	if p.Title != "" {
+		return p.Title
+	}
+	return "Untitled page"
+}
+
+// ageOf returns how long before now t was, as a person would say it, or ""
+// for the zero time.
+func ageOf(t, now time.Time) string {
+	d := now.Sub(t)
+	switch {
+	case t.IsZero():
+		return ""
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return fmt.Sprintf("%d min ago", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%d h ago", int(d.Hours()))
+	case d < 48*time.Hour:
+		return "yesterday"
+	case d < 30*24*time.Hour:
+		return fmt.Sprintf("%d days ago", int(d.Hours()/24))
+	}
+	return t.Format("2 Jan 2006")
+}
+
+// truncateEnd returns s, cut short with an ellipsis if it's wider than
+// width in face.
+func truncateEnd(face font.Face, s string, width int) string {
+	if font.MeasureString(face, s).Ceil() <= width {
+		return s
+	}
+	runes := []rune(s)
+	for n := len(runes) - 1; n > 0; n-- {
+		if t := string(runes[:n]) + "…"; font.MeasureString(face, t).Ceil() <= width {
+			return t
+		}
+	}
+	return ""
 }
 
 // treeView returns the View of page id shown in its frame: a stand-in

@@ -27,8 +27,8 @@ func newEngineOn(t *testing.T, store Store) *Engine {
 }
 
 // TestEnginePages checks the list of a document's pages: every page, with
-// its parent, passage and title, by when it was made, from the Store and
-// from a new engine on it alike.
+// its parent, passage, title and input, by when it was made, from the
+// Store and from a new engine on it alike.
 func TestEnginePages(t *testing.T) {
 	files := map[string]string{"cave.md": "---\nwhymark:\n  version: 1\n---\n# Entrance\n\n[In](#hall)\n\n# Hall\n\n[Out](#entrance)\n"}
 	store := newSQLiteStore(t)
@@ -36,6 +36,7 @@ func TestEnginePages(t *testing.T) {
 	start := take(t, e, whymark.Request{Location: file("cave.md")})
 	hall := follow(t, e, start, "#hall")
 	again := follow(t, e, start, "#hall") // a sibling of hall
+	typed := take(t, e, whymark.Request{Location: file("cave.md"), FromPageID: start.PageID, Input: map[string]string{"word": "xyzzy"}})
 
 	document := whymark.DocumentOf(file("cave.md"))
 	for _, engine := range []*Engine{e, newEngineOn(t, store)} {
@@ -43,17 +44,18 @@ func TestEnginePages(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(pages) != 3 {
-			t.Fatalf("%d pages, want 3: %+v", len(pages), pages)
+		if len(pages) != 4 {
+			t.Fatalf("%d pages, want 4: %+v", len(pages), pages)
 		}
-		want := []struct{ id, parent, passage, title string }{
-			{start.PageID, "", "entrance", "Entrance"},
-			{hall.PageID, start.PageID, "hall", "Hall"},
-			{again.PageID, start.PageID, "hall", "Hall"},
+		want := []struct{ id, parent, passage, title, input string }{
+			{start.PageID, "", "entrance", "Entrance", ""},
+			{hall.PageID, start.PageID, "hall", "Hall", ""},
+			{again.PageID, start.PageID, "hall", "Hall", ""},
+			{typed.PageID, start.PageID, "entrance", "Entrance", "xyzzy"},
 		}
 		for i, w := range want {
 			p := pages[i]
-			if p.ID != w.id || p.Parent != w.parent || p.Passage != w.passage || p.Title != w.title {
+			if p.ID != w.id || p.Parent != w.parent || p.Passage != w.passage || p.Title != w.title || p.Input["word"] != w.input {
 				t.Errorf("page %d is %+v, want %+v", i, p, w)
 			}
 		}

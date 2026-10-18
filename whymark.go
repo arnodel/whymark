@@ -56,4 +56,7 @@ type PageInfo struct {
 	// LastVisited is when it was last visited, if the engine keeps track
 	// (see Engine.Visit).
 	LastVisited time.Time
+	// Input is the named fields typed in for the request that made it, if
+	// any (see Request.Input).
+	Input map[string]string
 }

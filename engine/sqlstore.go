@@ -144,7 +144,7 @@ func (s *SQLiteStore) LoadPage(id string) (SavedPage, bool, error) {
 
 // Pages lists the pages of document, by when they were made.
 func (s *SQLiteStore) Pages(document whymark.Document) ([]whymark.PageInfo, error) {
-	rows, err := s.db.Query(`SELECT id, parent, passage, title, created_at, last_visited_at FROM pages
+	rows, err := s.db.Query(`SELECT id, parent, passage, title, created_at, last_visited_at, input FROM pages
 		WHERE document = ? ORDER BY created_at, id`, string(document))
 	if err != nil {
 		return nil, err
@@ -154,8 +154,14 @@ func (s *SQLiteStore) Pages(document whymark.Document) ([]whymark.PageInfo, erro
 	for rows.Next() {
 		var p whymark.PageInfo
 		var created, visited string
-		if err := rows.Scan(&p.ID, &p.Parent, &p.Passage, &p.Title, &created, &visited); err != nil {
+		var input sql.NullString
+		if err := rows.Scan(&p.ID, &p.Parent, &p.Passage, &p.Title, &created, &visited, &input); err != nil {
 			return nil, err
+		}
+		if input.Valid {
+			if err := json.Unmarshal([]byte(input.String), &p.Input); err != nil {
+				return nil, fmt.Errorf("page %s: %w", p.ID, err)
+			}
 		}
 		if p.Time, err = parseTimeText(created); err != nil {
 			return nil, err

@@ -107,7 +107,7 @@ func (a *App) Keys() []Key {
 	for _, c := range commands {
 		keys = append(keys, c.keys...)
 	}
-	return keys
+	return append(keys, experimentKeys()...)
 }
 
 // PressKey runs the command k runs, if any, reporting whether there was
@@ -119,7 +119,7 @@ func (a *App) Keys() []Key {
 func (a *App) PressKey(k Key) bool {
 	a.touch = false
 	k.Repeats = false
-	if a.tree != nil && a.treeKey(k) {
+	if a.tree != nil && (a.treeKey(k) || a.experimentKey(k)) {
 		return true
 	}
 	for _, c := range commands {
@@ -138,6 +138,11 @@ func (a *App) PressKey(k Key) bool {
 // closing the page first if the command changes what's shown, or else
 // showing the page again, as the command left things.
 func (a *App) runCommand(name string) {
+	if name, ok := strings.CutPrefix(name, "experiment/"); ok {
+		a.toggleExperiment(name)
+		a.refreshActions()
+		return
+	}
 	i := slices.IndexFunc(commands, func(c command) bool { return c.name == name })
 	if i < 0 {
 		return

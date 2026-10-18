@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/arnodel/whymark"
 	"github.com/arnodel/whynot/canvas"
 	"github.com/arnodel/whynot/input"
 )
@@ -210,5 +211,74 @@ func TestTreeAnimates(t *testing.T) {
 	settle()
 	if app.TreeShowing() || pageID(app) != lamp {
 		t.Errorf("after zooming in, page %s shows, want %s", pageID(app), lamp)
+	}
+}
+
+func TestTreeLabels(t *testing.T) {
+	app, _, _, _ := treeApp(t)
+	app.Relayout(1024, 700, 1, 0)
+	app.ShowTree()
+	texts := func() string {
+		r := &recorder{Area: app.Bounds()}
+		app.Draw(r, 0)
+		var b strings.Builder
+		for _, t := range r.Texts {
+			b.WriteString(t.S + " ")
+		}
+		return b.String()
+	}
+	if !strings.Contains(texts(), "just now") {
+		t.Errorf("the tree's labels don't say how long ago its pages were made: %q", texts())
+	}
+	press(app, "1") // the first experiment: labels
+	if strings.Contains(texts(), "just now") {
+		t.Errorf("the tree shows labels with them turned off: %q", texts())
+	}
+	if !app.TreeShowing() {
+		t.Error("toggling an experiment closed the tree")
+	}
+	app.HideTree()
+	app.ShowActions()
+	if !strings.Contains(string(app.actionsSource()), "| Labels in the tree of pages | **off** |") {
+		t.Errorf("the actions page doesn't say labels are off: %s", app.actionsSource())
+	}
+	app.Follow("whymark:experiment/tree-labels")
+	if !app.experiment("tree-labels") || !strings.Contains(string(app.actionsSource()), "| Labels in the tree of pages | **on** |") {
+		t.Error("the actions page's link didn't turn labels back on")
+	}
+}
+
+func TestTreeLabel(t *testing.T) {
+	for _, c := range []struct {
+		page whymark.PageInfo
+		want string
+	}{
+		{whymark.PageInfo{Title: "Hall"}, "Hall"},
+		{whymark.PageInfo{Title: "To do", Input: map[string]string{"task": " buy\n milk "}}, "“buy milk”"},
+		{whymark.PageInfo{Input: map[string]string{"b": "2", "a": "1"}}, "“a: 1 · b: 2”"},
+		{whymark.PageInfo{}, "Untitled page"},
+	} {
+		if got := treeLabel(c.page); got != c.want {
+			t.Errorf("treeLabel(%+v) = %q, want %q", c.page, got, c.want)
+		}
+	}
+	now := time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)
+	for _, c := range []struct {
+		ago  time.Duration
+		want string
+	}{
+		{10 * time.Second, "just now"},
+		{5 * time.Minute, "5 min ago"},
+		{3 * time.Hour, "3 h ago"},
+		{30 * time.Hour, "yesterday"},
+		{5 * 24 * time.Hour, "5 days ago"},
+		{60 * 24 * time.Hour, "19 Aug 2026"},
+	} {
+		if got := ageOf(now.Add(-c.ago), now); got != c.want {
+			t.Errorf("ageOf(%v ago) = %q, want %q", c.ago, got, c.want)
+		}
+	}
+	if got := ageOf(time.Time{}, now); got != "" {
+		t.Errorf("the age of no time is %q", got)
 	}
 }

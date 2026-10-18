@@ -170,6 +170,28 @@ func (a *App) actionsSource() []byte {
 		{unless(!a.CanShowTree(), "tree", "Show the tree of pages"), keysOf("tree")},
 		{link("source", "Show this page's source"), keysOf("source")},
 	})
+	b.WriteString("## Experiments\n\n")
+	if keys {
+		b.WriteString("| | Now | | Keys |\n|---|---|---|---|\n")
+	} else {
+		b.WriteString("| | Now | |\n|---|---|---|\n")
+	}
+	for i, e := range experiments {
+		now, action := "off", "turn on"
+		if a.experiment(e.name) {
+			now, action = "on", "turn off"
+		}
+		fmt.Fprintf(&b, "| %s | **%s** | %s |", e.text, now, link("experiment/"+e.name, action))
+		if keys {
+			key := ""
+			if i < 9 {
+				key = fmt.Sprintf("**%d** in the tree of pages", i+1)
+			}
+			fmt.Fprintf(&b, " %s |", key)
+		}
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
 	if !keys {
 		return []byte(b.String()) // reading is all keys
 	}

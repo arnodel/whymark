@@ -421,7 +421,7 @@ func (e *Engine) Pages(document whymark.Document) ([]whymark.PageInfo, error) {
 			continue // its turn is still setting it
 		}
 		if snap.document == string(document) && !seen[id] {
-			pages = append(pages, whymark.PageInfo{ID: id, Parent: snap.parent, Passage: snap.passage, Time: snap.time})
+			pages = append(pages, whymark.PageInfo{ID: id, Parent: snap.parent, Passage: snap.passage, Time: snap.time, Input: snap.request.Input})
 		}
 	}
 	e.mu.Unlock()
