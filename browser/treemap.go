@@ -3,6 +3,7 @@ package browser
 import (
 	"image"
 	"image/color"
+	"maps"
 	"math"
 	"slices"
 	"time"
@@ -261,8 +262,20 @@ func (a *App) mapInput(e input.Event) {
 }
 
 // layoutMap places each page of t on the map: its x, counted in leaves
-// from the left, and its depth.
+// from the left, and its depth; and gives it its heat, from 0 for the
+// oldest page to 1 for the newest, by rank, so that a few pages much older
+// or newer than the rest don't make them all alike.
 func (t *tree) layoutMap() {
+	ids := slices.SortedFunc(maps.Keys(t.pages), func(x, y string) int {
+		return t.pages[x].Time.Compare(t.pages[y].Time)
+	})
+	t.mapHeat = map[string]float64{}
+	for i, id := range ids {
+		t.mapHeat[id] = 1
+		if len(ids) > 1 {
+			t.mapHeat[id] = float64(i) / float64(len(ids)-1)
+		}
+	}
 	t.mapX = map[string]float64{}
 	t.mapDepth = map[string]int{}
 	t.mapLeaves, t.mapRows = 0, 0
@@ -456,8 +469,12 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 	if !a.hasPointer {
 		hovered = ""
 	}
+	heat := a.experiment("map-heat")
 	for id := range t.pages {
 		clr := theme.ThematicBreakColor
+		if heat {
+			clr = heatColor(t.mapHeat[id], a.darkTheme)
+		}
 		if id == t.start && a.experiment("tree-path") {
 			clr = accent
 		}
@@ -510,6 +527,28 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 	a.drawThumb(dst, hovered, card, now)
 	a.drawTreeLabel(dst, hovered, card, wall)
 	frame(dst, card.Inset(-thin), thin, theme.TextColor)
+}
+
+// The heat scales: from cold, the color of the map's lines, through warm,
+// to hot, on a dark background and on a light one.
+var (
+	darkHeat  = [3]color.RGBA{{0x3D, 0x44, 0x4D, 0xFF}, {0xC8, 0x7A, 0x24, 0xFF}, {0xFF, 0xE4, 0x7A, 0xFF}}
+	lightHeat = [3]color.RGBA{{0xC8, 0xCC, 0xD2, 0xFF}, {0xE0, 0x7B, 0x00, 0xFF}, {0xB3, 0x26, 0x1E, 0xFF}}
+)
+
+// heatColor returns the color of heat h, from 0, cold, to 1, hot.
+func heatColor(h float64, dark bool) color.Color {
+	scale := lightHeat
+	if dark {
+		scale = darkHeat
+	}
+	from, to := scale[0], scale[1]
+	if h > 0.5 {
+		from, to, h = scale[1], scale[2], h-0.5
+	}
+	f := 2 * h
+	mix := func(x, y uint8) uint8 { return uint8(float64(x) + (float64(y)-float64(x))*f) }
+	return color.RGBA{mix(from.R, to.R), mix(from.G, to.G), mix(from.B, to.B), 0xFF}
 }
 
 // drawMapIcon draws the map's icon in r on dst, in a box.

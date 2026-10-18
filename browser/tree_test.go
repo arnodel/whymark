@@ -731,3 +731,21 @@ func TestTreeMapToolbarBack(t *testing.T) {
 		t.Errorf("the toolbar's Back left the tree showing: %v, the map expanded: %v", app.TreeShowing(), app.MapExpanded())
 	}
 }
+
+func TestTreeMapHeat(t *testing.T) {
+	app, hall, lamp, shout := treeApp(t)
+	app.ShowTree()
+	h := app.tree.mapHeat
+	if h[hall] != 0 || h[shout] != 1 || h[lamp] <= 0 || h[lamp] >= 1 {
+		t.Errorf("the heats are hall %v, lamp %v, shout %v, want 0 for the oldest to 1 for the newest", h[hall], h[lamp], h[shout])
+	}
+	for _, dark := range []bool{true, false} {
+		scale := lightHeat
+		if dark {
+			scale = darkHeat
+		}
+		if heatColor(0, dark) != scale[0] || heatColor(0.5, dark) != scale[1] || heatColor(1, dark) != scale[2] {
+			t.Errorf("the heat scale (dark: %v) doesn't go from cold through warm to hot", dark)
+		}
+	}
+}

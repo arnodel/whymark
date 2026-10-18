@@ -47,6 +47,7 @@ type tree struct {
 	// is mapLeaves wide and mapRows deep.
 	mapX               map[string]float64
 	mapDepth           map[string]int
+	mapHeat            map[string]float64 // see layoutMap
 	mapLeaves, mapRows int
 	// focusX and focusY are where the map's corner is centred, following
 	// the selected page, and mapGrow how far it's expanded (see
