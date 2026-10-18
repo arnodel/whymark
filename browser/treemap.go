@@ -109,34 +109,36 @@ type treeMap struct {
 	x0, y0, step, rowStep float64
 	dot                   int
 	// grown is how far it's expanded, from 0, in its corner, to 1, and
-	// box, in its own x and depth, the part the corner shows. hidden is
-	// whether the corner is too small to show, in a tiny window: the map
-	// shows only expanded.
-	hidden bool
-	grown  float64
-	box    struct{ x0, y0, x1, y1 float64 }
+	// box, in its own x and depth, the part the corner shows. icon is
+	// whether the corner shows only an icon, in rect, as it does in a
+	// window too small for it, or in the tree-map-icon experiment.
+	icon  bool
+	grown float64
+	box   struct{ x0, y0, x1, y1 float64 }
 }
 
 // treeMapGeometry returns where the map of the tree of pages is, if it's
 // shown: in the tree-map experiment. In its corner, a quarter of the
-// window, or more in a small one, it shows the part around its focus, at
-// a fixed scale; expanded, the whole tree, or the part around the
-// selected page, if it's too big.
+// window, it shows the part around its focus, at a fixed scale, or just
+// an icon if that's too small; expanded, the whole tree, or the part
+// around the selected page, if it's too big.
 func (a *App) treeMapGeometry() (treeMap, bool) {
 	t := a.tree
 	b := a.bounds
 	s := a.deviceScale
-	if t == nil || !a.experiment("tree-map") || b.Empty() {
+	margin, pad := int(12*s), int(10*s)
+	if t == nil || !a.experiment("tree-map") || b.Dx() < 4*margin || b.Dy() < 4*margin {
 		return treeMap{}, false
 	}
-	minW, minH := int(120*s), int(80*s)
-	w := min(max(b.Dx()/4, minW), b.Dx()/2)
-	h := min(max(b.Dy()/4, minH), b.Dy()/2)
+	w, h := b.Dx()/4, b.Dy()/4
 	now := time.Now()
-	margin, pad := int(12*s), int(10*s)
 	corner := image.Rect(b.Max.X-margin-w, b.Max.Y-margin-h, b.Max.X-margin, b.Max.Y-margin)
 	full := b.Inset(margin)
-	m := treeMap{tree: t, grown: t.mapGrow.at(now), hidden: w < minW || h < minH}
+	m := treeMap{tree: t, grown: t.mapGrow.at(now)}
+	if m.icon = a.experiment("tree-map-icon") || float64(w) < 120*s || float64(h) < 80*s; m.icon {
+		size := int(32 * s)
+		corner = image.Rect(b.Max.X-margin-size, b.Max.Y-margin-size, b.Max.X-margin, b.Max.Y-margin)
+	}
 	lerp := func(x, y float64) float64 { return x + (y-x)*m.grown }
 	m.rect = image.Rect(
 		int(lerp(float64(corner.Min.X), float64(full.Min.X))), int(lerp(float64(corner.Min.Y), float64(full.Min.Y))),
@@ -208,7 +210,7 @@ func (m treeMap) dotAt(p image.Point) string {
 // shown, or "".
 func (a *App) mapHovered() string {
 	m, ok := a.treeMapGeometry()
-	if !ok || !a.hasPointer || m.hidden && m.grown == 0 {
+	if !ok || !a.hasPointer || m.icon && m.grown == 0 {
 		return ""
 	}
 	return m.dotAt(a.pointer)
@@ -219,11 +221,15 @@ func (a *App) mapHovered() string {
 // picture and its label.
 func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) {
 	m, ok := a.treeMapGeometry()
-	if !ok || m.hidden && m.grown == 0 {
+	if !ok {
 		return
 	}
 	t := a.tree
 	theme := a.treeTheme()
+	if m.icon && m.grown == 0 {
+		a.drawMapIcon(dst, m.rect)
+		return
+	}
 	accent := a.Panel.View().HighlightColor()
 	thin := max(1, int(a.deviceScale))
 	r := m.rect
@@ -289,7 +295,7 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 	// Expanding, the box around the part the corner shows, which is the
 	// corner's own edge as it starts to grow; it keeps the corner's shape,
 	// even where it goes past the map's edge.
-	if m.grown > 0 {
+	if m.grown > 0 && !m.icon {
 		box := image.Rect(
 			int(m.x0+m.box.x0*m.step), int(m.y0+m.box.y0*m.rowStep),
 			int(m.x0+m.box.x1*m.step), int(m.y0+m.box.y1*m.rowStep))
@@ -328,6 +334,18 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 	a.drawThumb(dst, hovered, card, now)
 	a.drawTreeLabel(dst, hovered, card, wall)
 	frame(dst, card.Inset(-thin), thin, theme.TextColor)
+}
+
+// drawMapIcon draws the map's icon in r on dst, in a box.
+func (a *App) drawMapIcon(dst canvas.Canvas, r image.Rectangle) {
+	theme := a.treeTheme()
+	thin := max(1, int(a.deviceScale))
+	bg := color.NRGBAModel.Convert(theme.BackgroundColor).(color.NRGBA)
+	bg.A = 0xE6
+	fill(dst, r, bg)
+	frame(dst, r, thin, theme.ThematicBreakColor)
+	in := r.Inset(r.Dx() / 8)
+	dst.DrawImage(tint(mapIcon, theme.TextColor), in.Min.X, in.Min.Y, in.Dx(), in.Dy())
 }
 
 // fill fills r on dst with clr.

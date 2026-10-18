@@ -553,22 +553,38 @@ func TestTreeMap(t *testing.T) {
 	}
 }
 
-// TestTreeMapSmallWindow checks the map in small windows: the corner takes
-// more of the window, and in a tiny one, only expanding shows it.
-func TestTreeMapSmallWindow(t *testing.T) {
+// TestTreeMapIcon checks the map's icon: in a window too small for the
+// map's corner, or in the tree-map-icon experiment, a click on it expands
+// the map.
+func TestTreeMapIcon(t *testing.T) {
 	app, _, _, _ := treeApp(t)
 	app.Relayout(400, 300, 1, 0)
 	app.ShowTree()
 	m, ok := app.treeMapGeometry()
-	if !ok || m.hidden || m.rect.Dx() < 120 || m.rect.Dy() < 80 {
-		t.Fatalf("in a small window, the map's corner is %v, hidden: %v", m.rect, m.hidden)
+	if !ok || !m.icon {
+		t.Fatalf("in a small window, the map isn't an icon")
 	}
-	app.Relayout(200, 120, 1, 0)
-	if m, ok := app.treeMapGeometry(); !ok || !m.hidden {
-		t.Fatalf("in a tiny window, the map's corner isn't hidden")
+	c := m.rect.Min.Add(m.rect.Size().Div(2))
+	app.Frame([]input.Event{input.PointerButton{X: c.X, Y: c.Y, Button: input.ButtonPrimary, Down: true}}, 0)
+	if !app.MapExpanded() {
+		t.Error("a click on the map's icon didn't expand the map")
 	}
-	press(app, "M")
-	if m, _ := app.treeMapGeometry(); !app.MapExpanded() || m.grown != 1 {
-		t.Error("in a tiny window, M didn't expand the map")
+	app.Back()
+	app.Relayout(1024, 700, 1, 0)
+	if m, _ := app.treeMapGeometry(); m.icon {
+		t.Error("in a big window, the map is an icon")
+	}
+	press(app, "5") // the fifth experiment: only the icon
+	if m, _ := app.treeMapGeometry(); !m.icon {
+		t.Error("in the tree-map-icon experiment, the map isn't an icon")
+	}
+}
+
+func TestTreeTheme(t *testing.T) {
+	app, hall, _, _ := treeApp(t)
+	app.ShowTree()
+	app.SetTheme(false)
+	if !usesStyleSheet(app.tree.views[hall], app.styleSheet) { // from history
+		t.Error("switching theme didn't switch the tree's pages")
 	}
 }

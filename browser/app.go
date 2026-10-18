@@ -405,6 +405,11 @@ func (a *App) SetTheme(dark bool) {
 		j.stack.SetColors(a.stackColors())
 		j.stack.SetScrollbar(a.stackScrollbar())
 	}
+	if t := a.tree; t != nil {
+		for _, v := range t.views {
+			v.SetStyleSheet(a.styleSheet)
+		}
+	}
 }
 
 // updateWindowTitle fires OnTitleChange with the current document's own

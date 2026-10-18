@@ -3,6 +3,8 @@ package browser
 import (
 	"bytes"
 	"image"
+	"image/color"
+	"image/draw"
 	"image/png"
 )
 
@@ -45,3 +47,30 @@ var (
 	MicIcon  = decodeIcon("mic.png")
 	SendIcon = decodeIcon("send.png")
 )
+
+// mapIcon is the icon in the tree of pages' corner that expands its map,
+// when the map itself doesn't show there (see treeMapGeometry).
+var mapIcon = decodeIcon("map.png")
+
+// tinted keeps the icons tinted by tint, by icon and color.
+var tinted = map[struct {
+	icon image.Image
+	clr  color.RGBA
+}]image.Image{}
+
+// tint returns icon in clr, keeping its shape: always the same image for
+// the same icon and color, as a Canvas expects of images it caches.
+func tint(icon image.Image, clr color.Color) image.Image {
+	key := struct {
+		icon image.Image
+		clr  color.RGBA
+	}{icon, color.RGBAModel.Convert(clr).(color.RGBA)}
+	if img, ok := tinted[key]; ok {
+		return img
+	}
+	b := icon.Bounds()
+	img := image.NewRGBA(b)
+	draw.DrawMask(img, b, image.NewUniform(clr), image.Point{}, icon, b.Min, draw.Src)
+	tinted[key] = img
+	return img
+}

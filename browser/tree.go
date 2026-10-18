@@ -1035,7 +1035,7 @@ func (a *App) treeInput(events []input.Event) {
 		default:
 			continue
 		}
-		if m, ok := a.treeMapGeometry(); ok && (a.MapExpanded() || !m.hidden && at.In(m.rect)) {
+		if m, ok := a.treeMapGeometry(); ok && (a.MapExpanded() || at.In(m.rect)) {
 			// The map is over the tiles: a click on it is its. In its
 			// corner, it expands; expanded, a click on a dot selects the
 			// page, and a click on a dot or outside the map shrinks it back.
