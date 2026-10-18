@@ -42,7 +42,7 @@ func (a *App) DrawZoomIndicator(dst canvas.Canvas, face font.Face) {
 
 // DrawDebugStats shows fps/tps alongside the most recent Update/Draw
 // call durations, in the document area's top-left corner - the caller
-// gates whether to call this at all (e.g. cmd/whynot's -debug-stats/F
+// gates whether to call this at all (e.g. cmd/whymark's -debug-stats/F
 // toggle) and supplies its own backend's performance counters, which
 // this package has no way to read itself.
 func (a *App) DrawDebugStats(dst canvas.Canvas, face font.Face, fps, tps float64, updateDuration, drawDuration time.Duration) {

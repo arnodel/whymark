@@ -12,7 +12,7 @@ func TestVCSBuildLine(t *testing.T) {
 		revision: "67109f6aaaabbbbccccddddeeeeffff000011112",
 		time:     time.Date(2026, 10, 4, 10, 12, 0, 0, time.UTC),
 	}
-	want := "*Built from commit [67109f6](https://github.com/arnodel/whynot/commit/67109f6aaaabbbbccccddddeeeeffff000011112), of 4 Oct 2026, 10:12 UTC.*\n\n"
+	want := "*Built from commit [67109f6](https://github.com/arnodel/whymark/commit/67109f6aaaabbbbccccddddeeeeffff000011112), of 4 Oct 2026, 10:12 UTC.*\n\n"
 	if got := b.line(); got != want {
 		t.Errorf("line() = %q, want %q", got, want)
 	}

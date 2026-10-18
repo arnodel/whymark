@@ -67,7 +67,7 @@ func readClipboard() (string, error) {
 }
 
 // openInBrowser hands rawURL to the OS's own default handler - a real
-// web browser, unlike whynot itself - the same per-OS dispatch
+// web browser, unlike whymark itself - the same per-OS dispatch
 // readClipboard uses, so no extra dependency is needed for this either.
 // Runs in the background: the launcher command (open/xdg-open/start)
 // exits as soon as it's handed the URL off, not when the browser itself

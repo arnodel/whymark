@@ -21,7 +21,7 @@ import (
 // rather than something like a query parameter, since it's meant to be
 // memorable enough to paste from memory, not just discovered by clicking
 // a link.
-var WelcomeURL = &url.URL{Scheme: "whynot", Opaque: "welcome"}
+var WelcomeURL = &url.URL{Scheme: "whymark", Opaque: "welcome"}
 
 // Version is set via -X github.com/arnodel/whymark/internal/browser.Version=...
 // at build time (see .goreleaser.yml) - "dev" for an ordinary local
@@ -34,7 +34,7 @@ var Version = "dev"
 // document" section mentioning the address bar can be clicked and
 // typed into - false by default, since the welcome page is shared
 // between
-// cmd/whynot (read-only address bar) and cmd/giowhynot (editable); set
+// cmd/whymark (read-only address bar) and cmd/giowhymark (editable); set
 // this to true before the welcome page is first loaded
 // (i.e. at the very start of main) in a host whose address bar
 // actually is editable.
@@ -43,7 +43,7 @@ var AddressBarEditable bool
 // welcomeShortcut is the platform's own shortcut for key, written the way
 // a person would actually type it - the embedded page can't know at
 // build time which OS it'll run on. Spelled out as "Cmd+V" rather than
-// the ⌘ glyph: whynot only ships golang.org/x/image/font/gofont, which
+// the ⌘ glyph: whymark only ships golang.org/x/image/font/gofont, which
 // doesn't cover that symbol - it would silently render as a tofu box.
 func welcomeShortcut(key string) string {
 	if runtime.GOOS == "darwin" {
@@ -101,7 +101,7 @@ func addressBarTip() string {
 	return "- Click the address bar, type a path, URL, or \"welcome\", then press Enter.\n"
 }
 
-// welcomeResolver resolves whynot: URLs: WelcomeURL to the welcome page,
+// welcomeResolver resolves whymark: URLs: WelcomeURL to the welcome page,
 // and any other to the files bundled in assetsFS, so the welcome page's
 // images are bundled with it: an image next to welcome.md is referenced
 // from it as "screenshot.png", like any other relative image.

@@ -26,7 +26,7 @@ type Key struct {
 // a link on the actions page (see ShowActions).
 type command struct {
 	// name is the command's name in the actions page's links:
-	// "whynot:name".
+	// "whymark:name".
 	name string
 	keys []Key
 	run  func(a *App)

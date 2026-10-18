@@ -48,7 +48,7 @@ func (g *game) Draw(screen *ebiten.Image) {
 // StyleSheet.HighlightColor to match the hovered link's own color in
 // the document) and the back/forward/reload/TOC/actions buttons. Icon
 // drawing needs dst directly - canvas.Canvas has no primitive for a
-// scaled, tinted image - so this is the one part of cmd/whynot's own
+// scaled, tinted image - so this is the one part of cmd/whymark's own
 // UI that goes around the library's rendering abstraction rather than
 // through it.
 func (g *game) drawToolbar(dst *ebiten.Image, cv canvas.Canvas) {

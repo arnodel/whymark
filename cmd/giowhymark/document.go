@@ -10,8 +10,8 @@ import (
 
 	"github.com/arnodel/whynot"
 
-	"github.com/arnodel/whynot/backends/giobackend"
 	"github.com/arnodel/whymark/internal/browser"
+	"github.com/arnodel/whynot/backends/giobackend"
 	"github.com/arnodel/whynot/input"
 )
 

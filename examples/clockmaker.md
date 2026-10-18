@@ -8,8 +8,8 @@ whymark:
     ai: optional
 ---
 
-The Clockmaker's Shop: a tiny game written as a whymark document. Open it in whynot to play
-(`whynot browser/examples/clockmaker.md`). Read as Markdown, it's also the game's script:
+The Clockmaker's Shop: a tiny game written as a whymark document. Open it in whymark to play
+(`whymark examples/clockmaker.md`). Read as Markdown, it's also the game's script:
 each `#` heading is a page, and the code in backquotes runs. See
 [whymark.md](../whymark.md) for the format.
 

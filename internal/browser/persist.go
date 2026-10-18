@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/arnodel/whynot"
 	"github.com/arnodel/whymark/internal/whymark"
+	"github.com/arnodel/whynot"
 )
 
 // A whymark document's state lives in its pages. With persistence on, the
@@ -95,7 +95,7 @@ func sameDocument(x, y *url.URL) bool {
 // A whymark page has a URL of its own, its page URL: its location, with
 // its page-id after its passage, separated by "@", as in
 // "todo.md#to-do@k3j9x2m4qp7r5t8w". Opening it carries on from that page,
-// in any whynot on the machine keeping it (see EnablePersistence). The
+// in any whymark on the machine keeping it (see EnablePersistence). The
 // fragment is the user agent's business, never sent to the engine, and a
 // passage's id, a heading's anchor, never has an "@".
 

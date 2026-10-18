@@ -24,7 +24,7 @@ type config struct {
 	// AnthropicAPIKey is the key for the AI. AnthropicAPIKeyCommand is a
 	// command that prints it instead, such as
 	//
-	//	security find-generic-password -s whynot-claude-api-key -w
+	//	security find-generic-password -s whymark-claude-api-key -w
 	//
 	// so that the key can stay in a password store.
 	AnthropicAPIKey        string `yaml:"anthropic-api-key"`
@@ -51,7 +51,7 @@ func AnthropicAPIKey() (key, from string, err error) {
 }
 
 // configPath returns the config file to read, the first of these that
-// exists, and those after it that exist too: whynot/config.yaml in
+// exists, and those after it that exist too: whymark/config.yaml in
 // $XDG_CONFIG_HOME, or else in ~/.config, as Unix tools have it, macOS
 // included; then in the system's own config directory (see
 // os.UserConfigDir), such as ~/Library/Application Support on macOS. It
@@ -68,7 +68,7 @@ func configPath() (path string, ignored []string) {
 	}
 	seen := map[string]bool{}
 	for _, dir := range dirs {
-		p := filepath.Join(dir, "whynot", "config.yaml")
+		p := filepath.Join(dir, "whymark", "config.yaml")
 		if seen[p] {
 			continue // on Linux, the system's directory is ~/.config
 		}

@@ -10,10 +10,10 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
-	"github.com/arnodel/whynot"
-	"github.com/arnodel/whynot/backends/ebitenbackend"
 	"github.com/arnodel/whymark/internal/browser"
 	"github.com/arnodel/whymark/internal/whymark/ai/anthropic"
+	"github.com/arnodel/whynot"
+	"github.com/arnodel/whynot/backends/ebitenbackend"
 	"github.com/arnodel/whynot/fonts"
 	"github.com/arnodel/whynot/styles/simpletheme"
 )
@@ -26,7 +26,7 @@ import (
 const initialWindowWidth, initialWindowHeight = 1024, 768
 
 func main() {
-	light := flag.Bool("light", false, "use whynot's light theme instead of the default dark one")
+	light := flag.Bool("light", false, "use the light theme instead of the default dark one")
 	debugHit := flag.Bool("debug-hit", false, "outline the box under the mouse, via View.HitTest")
 	rootDir := flag.String("root", "", "only open local documents and images beneath this directory (default: anywhere on the document's drive)")
 	debugStats := flag.Bool("debug-stats", false, "show FPS/TPS and per-frame Update/Draw timing at startup - togglable at runtime with F regardless")
@@ -43,7 +43,7 @@ func main() {
 	registry := browser.NewRegistry(root)
 
 	// No file/URL given: land on the welcome page rather than a
-	// hardcoded local file, matching what a person launching whynot
+	// hardcoded local file, matching what a person launching whymark
 	// with no arguments should actually see.
 	location := browser.WelcomeURL
 	if flag.NArg() != 0 {
@@ -71,7 +71,7 @@ func main() {
 		app.EnableAI(anthropic.New(key), anthropic.Models, *remoteAI)
 	}
 	if dir, err := os.UserConfigDir(); err == nil {
-		if err := app.EnablePersistence(filepath.Join(dir, "whynot", "whymark")); err != nil {
+		if err := app.EnablePersistence(filepath.Join(dir, "whymark")); err != nil {
 			log.Printf("keeping whymark pages: %v", err)
 		}
 	}

@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/arnodel/whynot"
 	"github.com/arnodel/whymark/internal/whymark"
 	"github.com/arnodel/whymark/internal/whymark/compile"
+	"github.com/arnodel/whynot"
 )
 
 // whymarkPage is what the browser keeps of a page of a whymark document:

@@ -25,7 +25,7 @@ func TestShowSource(t *testing.T) {
 		t.Fatal("pressing the key again didn't show the document again")
 	}
 	app.ShowActions()
-	app.Follow("whynot:source")
+	app.Follow("whymark:source")
 	if !app.SourceShowing() {
 		t.Fatal("the actions page's link didn't show the source")
 	}

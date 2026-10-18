@@ -14,8 +14,8 @@ import (
 	"gioui.org/op"
 	"gioui.org/widget"
 
-	"github.com/arnodel/whynot"
 	"github.com/arnodel/whymark/internal/browser"
+	"github.com/arnodel/whynot"
 	"github.com/arnodel/whynot/fonts"
 	"github.com/arnodel/whynot/styles/simpletheme"
 )

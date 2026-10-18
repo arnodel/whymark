@@ -6,8 +6,8 @@ whymark:
   journal: true
 ---
 
-A tiny adventure: find the lamp, and go down to the cellar. Open it in whynot to play
-(`whynot browser/examples/cellar.md`), or read it here: each `#` heading is a passage, and
+A tiny adventure: find the lamp, and go down to the cellar. Open it in whymark to play
+(`whymark examples/cellar.md`), or read it here: each `#` heading is a passage, and
 the code in backquotes runs. See [whymark.md](../whymark.md) for the format.
 
 ```lua

@@ -4,7 +4,7 @@
 // bundle, for the permission to recognize speech:
 //
 //	go build -o /tmp/speechtest ./internal/speechtest
-//	go run ./internal/macapp -binary /tmp/speechtest -name speechtest -id io.github.arnodel.whynot.speechtest -out /tmp
+//	go run ./internal/macapp -binary /tmp/speechtest -name speechtest -id io.github.arnodel.whymark.speechtest -out /tmp
 //	/tmp/speechtest.app/Contents/MacOS/speechtest -file speech.aiff
 package main
 

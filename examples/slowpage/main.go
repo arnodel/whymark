@@ -4,7 +4,7 @@
 // text. Run it, then open its address in a viewer:
 //
 //	go run ./examples/slowpage
-//	go run ./cmd/whynot http://localhost:8765/
+//	go run ./cmd/whymark http://localhost:8765/
 package main
 
 import (

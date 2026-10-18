@@ -4,9 +4,9 @@ import (
 	"image"
 	"time"
 
+	"github.com/arnodel/whymark/internal/browser"
 	"github.com/arnodel/whynot"
 	"github.com/arnodel/whynot/backends/ebitenbackend"
-	"github.com/arnodel/whymark/internal/browser"
 	"github.com/arnodel/whynot/fonts"
 )
 

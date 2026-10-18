@@ -1,31 +1,31 @@
-# giowhynot, the Gio viewer
+# giowhymark, the Gio viewer
 
-The [whynot viewer](../whynot), built on [Gio](https://gioui.org/) instead of
+The [whymark viewer](../whymark), built on [Gio](https://gioui.org/) instead of
 Ebitengine: the same document browser (links, history, zoom, themes, table of contents)
 with a Gio-native toolbar and Gio's own scrollbar. It's a full program built on whynot's
-[Gio backend](../../../backends/giobackend).
+[Gio backend](https://github.com/arnodel/whynot/tree/main/backends/giobackend).
 
 ## Install
 
 ```bash
-go install github.com/arnodel/whymark/cmd/giowhynot@latest
+go install github.com/arnodel/whymark/cmd/giowhymark@latest
 ```
 
 Gio needs a few system libraries on Linux: see
 [Gio's installation guide](https://gioui.org/doc/install/linux). There's no release binary
 yet.
 
-On macOS, from a checkout, `make mac-app-gio` in [`browser`](../..) makes `build/giowhynot.app`,
+On macOS, from a checkout, `make mac-app-gio` at the [root](../..) makes `build/giowhymark.app`,
 an app bundle, with a microphone beside the prompt, which needs the bundle for its permissions;
 `make run-mac-app-gio ARGS=examples/todo.md` builds it and runs it from the terminal, with its
 log there.
 
-It also runs in a web browser: **[try it](https://arnodel.github.io/whynot/giowhynot/)**,
+It also runs in a web browser: **[try it](https://arnodel.github.io/whymark/giowhymark/)**,
 and see [`web`](web) for how that's built and what differs.
 
 ## Use
 
-The same as [`whynot`](../whynot#use): the same arguments, keys, and
+The same as [`whymark`](../whymark#use): the same arguments, keys, and
 `-light`, `-root` and `-remote-ai` options. The differences:
 
 - **The address bar is editable:** click it, type a path, a URL or "welcome", and press

@@ -47,7 +47,7 @@ func (a *App) ActionsShowing() bool { return a.overlay == actionsOverlay }
 // again after an action that shows on the page itself, such as zooming,
 // so that it can be repeated; an action that changes what's shown, such
 // as journal mode, closes the page first. Only the actions page's own
-// links run actions: they're "whynot:" links (see Follow).
+// links run actions: they're "whymark:" links (see Follow).
 func (a *App) ShowActions() {
 	a.copied = false
 	a.showOverlay(actionsOverlay, a.actionsSource())
@@ -99,7 +99,7 @@ func (a *App) copyAction(page, journal string) string {
 
 // actionsSource generates the Markdown source of the actions page.
 func (a *App) actionsSource() []byte {
-	link := func(name, text string) string { return "[" + text + "](whynot:" + name + ")" }
+	link := func(name, text string) string { return "[" + text + "](whymark:" + name + ")" }
 	// unless is text, without its link if the action can't be done now.
 	unless := func(cant bool, name, text string) string {
 		if cant {

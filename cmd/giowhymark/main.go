@@ -1,4 +1,4 @@
-// Command giowhynot is cmd/whynot's Gio (gioui.org) counterpart: the
+// Command giowhymark is cmd/whymark's Gio (gioui.org) counterpart: the
 // same browser.App - navigation history, theme, zoom, document/image
 // loading, welcome page - drawn with giobackend instead of
 // ebitenbackend, with Gio's own scrollbar and a Gio-native toolbar (see
@@ -17,10 +17,10 @@ import (
 	"gioui.org/op"
 	"gioui.org/unit"
 
-	"github.com/arnodel/whynot"
-	"github.com/arnodel/whynot/backends/giobackend"
 	"github.com/arnodel/whymark/internal/browser"
 	"github.com/arnodel/whymark/internal/whymark/ai/anthropic"
+	"github.com/arnodel/whynot"
+	"github.com/arnodel/whynot/backends/giobackend"
 	"github.com/arnodel/whynot/fonts"
 	"github.com/arnodel/whynot/styles/simpletheme"
 )
@@ -33,7 +33,7 @@ func main() {
 	// comment on why this needs setting explicitly.
 	browser.AddressBarEditable = true
 
-	light := flag.Bool("light", false, "use whynot's light theme instead of the default dark one")
+	light := flag.Bool("light", false, "use the light theme instead of the default dark one")
 	rootDir := flag.String("root", "", "only open local documents and images beneath this directory (default: anywhere on the document's drive)")
 	remoteAI := flag.Bool("remote-ai", false, "with an API key for the AI (see the README), let whymark documents from the web use the AI too, at your expense: by default, only local ones can")
 	flag.Parse()
@@ -48,7 +48,7 @@ func main() {
 	registry := browser.NewRegistry(root)
 
 	// No file/URL given: land on the welcome page rather than a
-	// hardcoded local file, matching what a person launching giowhynot
+	// hardcoded local file, matching what a person launching giowhymark
 	// with no arguments should actually see.
 	location := browser.WelcomeURL
 	if flag.NArg() != 0 {
@@ -72,7 +72,7 @@ func main() {
 		browserApp.EnableAI(anthropic.New(key), anthropic.Models, *remoteAI)
 	}
 	if dir, err := os.UserConfigDir(); err == nil {
-		if err := browserApp.EnablePersistence(filepath.Join(dir, "whynot", "whymark")); err != nil {
+		if err := browserApp.EnablePersistence(filepath.Join(dir, "whymark")); err != nil {
 			log.Printf("keeping whymark pages: %v", err)
 		}
 	}
@@ -92,7 +92,7 @@ func main() {
 	tb := newToolbar(fonts.NewGoSelector(), renderer)
 	doc := &document{app: browserApp, renderer: renderer, start: time.Now(), onPress: tb.cancelEdit}
 
-	win.Option(app.Title("Why Not?"), app.Size(initialWindowWidth, initialWindowHeight))
+	win.Option(app.Title("WhyMark"), app.Size(initialWindowWidth, initialWindowHeight))
 	browserApp.OnTitleChange = func(title string) { win.Option(app.Title(title)) }
 	browserApp.Open(location)
 

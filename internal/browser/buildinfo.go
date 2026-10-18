@@ -69,7 +69,7 @@ func (b vcsBuild) short() string {
 // line is the welcome page's line about the build: the commit, linked,
 // its time, and whether there were local changes.
 func (b vcsBuild) line() string {
-	s := fmt.Sprintf("*Built from commit [%s](https://github.com/arnodel/whynot/commit/%s)", b.short(), b.revision)
+	s := fmt.Sprintf("*Built from commit [%s](https://github.com/arnodel/whymark/commit/%s)", b.short(), b.revision)
 	if !b.time.IsZero() {
 		s += ", of " + b.time.UTC().Format("2 Jan 2006, 15:04 MST")
 	}

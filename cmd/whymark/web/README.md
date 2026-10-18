@@ -1,8 +1,8 @@
-# whynot in the browser
+# whymark in the browser
 
-Runs the real `browser/cmd/whynot` - toolbar, history, zoom, theme, syntax highlighting - in a
+Runs the real `cmd/whymark` - toolbar, history, zoom, theme, syntax highlighting - in a
 browser tab via Ebitengine's own `js`/`wasm` backend, not just a demo (see
-[`examples/wasm`](../../../../examples/wasm) for that). Local file opening and paste-to-open both
+[`examples/wasm`](https://github.com/arnodel/whynot/tree/main/examples/wasm) for that). Local file opening and paste-to-open both
 no-op with a console message instead of working, since neither maps onto a browser sandbox
 the way it does on desktop. A link to a webpage opens in a new tab rather than the system
 browser; so does any page the browser won't let this one fetch (most websites, via CORS),
@@ -16,10 +16,10 @@ browser's own zoom.
 From this directory:
 
 ```bash
-GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o whynot.wasm ..
+GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o whymark.wasm ..
 ```
 
-`wasm_exec.js` (Go's runtime glue for `js`/`wasm`, committed alongside `whynot.wasm` in
+`wasm_exec.js` (Go's runtime glue for `js`/`wasm`, committed alongside `whymark.wasm` in
 this directory) is coupled to the exact Go toolchain version it came from. If you rebuild
 with a different Go version than this repo's `go.mod` currently pins, copy a fresh one
 too, or the page may fail confusingly at load time rather than at build time:
@@ -34,7 +34,7 @@ cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" .
 ## Run
 
 Serve this directory over HTTP (opening `index.html` directly as a `file://` URL won't
-work - `fetch` can't load `whynot.wasm` that way) and open it in a browser:
+work - `fetch` can't load `whymark.wasm` that way) and open it in a browser:
 
 ```bash
 python3 -m http.server
@@ -42,7 +42,7 @@ python3 -m http.server
 
 Then visit <http://localhost:8000> for the built-in welcome page, or
 <http://localhost:8000/?doc=https://raw.githubusercontent.com/arnodel/whynot/main/README.md>
-to open a document by URL straight away - `?doc=` becomes `browser/cmd/whynot`'s usual first
+to open a document by URL straight away - `?doc=` becomes `cmd/whymark`'s usual first
 command-line argument (see `index.html`), so it takes the same "welcome" or `http(s)` URL
 values a desktop invocation's argument would (minus local paths, which don't mean
 anything here).

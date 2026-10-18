@@ -63,7 +63,7 @@ func TestConfigPath(t *testing.T) {
 		t.Skip(err)
 	}
 	write := func(dir string) string {
-		p := filepath.Join(dir, "whynot", "config.yaml")
+		p := filepath.Join(dir, "whymark", "config.yaml")
 		os.MkdirAll(filepath.Dir(p), 0o700)
 		os.WriteFile(p, nil, 0o600)
 		return p

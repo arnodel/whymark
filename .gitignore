@@ -1,10 +1,10 @@
-# Local development against checkouts of whynot, next to this one.
+# Local development against a checkout of whynot next to this one (see the README).
 go.work
 go.work.sum
 /build
-/cmd/whynot/whynot
-/cmd/giowhynot/giowhynot
-/cmd/whynot/web/whynot.wasm
-/cmd/whynot/web/giowhynot
-/cmd/giowhynot/web/giowhynot.wasm
-/cmd/giowhynot/web/wasm_exec.js
+/cmd/whymark/whymark
+/cmd/giowhymark/giowhymark
+/cmd/whymark/web/whymark.wasm
+/cmd/whymark/web/giowhymark
+/cmd/giowhymark/web/giowhymark.wasm
+/cmd/giowhymark/web/wasm_exec.js

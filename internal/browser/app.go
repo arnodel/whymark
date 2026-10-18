@@ -1,14 +1,11 @@
-// Package browser is the backend-agnostic half of a whynot document
-// browser: navigation history, the current theme/zoom, document/image
-// loading, the welcome page, and toolbar icons - everything cmd/whynot
-// needs that isn't specific to ebiten, shaped so a Gio-based app can use
-// it too. It's a separate package from the root whynot module (rather
-// than living there) because it pulls in net/http, os/exec, and embed,
-// none of which a caller of the core rendering library should have to
-// import transitively.
+// Package browser is the backend-agnostic half of the whymark viewers,
+// built on the whynot rendering library: navigation history, the current
+// theme/zoom, document/image loading, the welcome page, and toolbar icons
+// - everything cmd/whymark needs that isn't specific to ebiten, shaped so
+// cmd/giowhymark can use it too.
 //
 // What's deliberately not here: toolbar layout, drawing, and input -
-// cmd/whynot's hand-rolled rect-hit-testing and a future Gio app's
+// cmd/whymark's hand-rolled rect-hit-testing and a future Gio app's
 // native widget.Clickable-based toolbar are different enough, and
 // simple enough, that sharing the input layer isn't worth it.
 package browser
@@ -23,8 +20,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/arnodel/whynot"
 	"github.com/arnodel/whymark/internal/whymark"
+	"github.com/arnodel/whynot"
 	"github.com/arnodel/whynot/codeblocks/chromahighlight"
 	"github.com/arnodel/whynot/codeblocks/kroki"
 	"github.com/arnodel/whynot/fetch"
@@ -52,7 +49,7 @@ type historyEntry struct {
 }
 
 // App is the navigation/history/theme/zoom state machine behind a
-// whynot document browser - everything cmd/whynot's own game struct
+// whymark viewer - everything cmd/whymark's own game struct
 // used to own beyond ebiten's own event loop and toolbar. Panel must be
 // assigned before calling any other method; NewView does not depend on
 // it, specifically so the very first View can be built (to construct
@@ -537,11 +534,11 @@ func (a *App) NewView(doc *whynot.Document) *whynot.View {
 // While the TOC is showing, dest is always one of its own "#id" links:
 // resolved against a.location as usual, but the jump lands on
 // a.overlaid, which becomes current again, closing the TOC. While the
-// actions page is showing, dest is one of its "whynot:" links, which
+// actions page is showing, dest is one of its "whymark:" links, which
 // runs its action (see ShowActions).
 func (a *App) Follow(dest string) {
 	if a.overlay == actionsOverlay {
-		if name, ok := strings.CutPrefix(dest, "whynot:"); ok {
+		if name, ok := strings.CutPrefix(dest, "whymark:"); ok {
 			a.runCommand(name)
 		}
 		return

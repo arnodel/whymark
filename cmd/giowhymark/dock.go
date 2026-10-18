@@ -16,8 +16,8 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 
-	"github.com/arnodel/whynot/backends/giobackend"
 	"github.com/arnodel/whymark/internal/browser"
+	"github.com/arnodel/whynot/backends/giobackend"
 )
 
 // dock is the text field docked below the document while the current page

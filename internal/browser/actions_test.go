@@ -64,14 +64,14 @@ func TestActionsPage(t *testing.T) {
 		t.Fatal("the actions page isn't showing")
 	}
 	source := string(app.actionsSource())
-	for _, want := range []string{"| Journal mode | **off** | [turn on](whynot:journal) |", "| Zoom | **100%** |", "[Go back](whynot:back)", "Go forward |"} {
+	for _, want := range []string{"| Journal mode | **off** | [turn on](whymark:journal) |", "| Zoom | **100%** |", "[Go back](whymark:back)", "Go forward |"} {
 		if !strings.Contains(source, want) {
 			t.Errorf("the actions page doesn't have %q:\n%s", want, source)
 		}
 	}
 
 	page := app.Panel.View()
-	app.Follow("whynot:zoom-in")
+	app.Follow("whymark:zoom-in")
 	if !app.ActionsShowing() || app.Panel.View() == page {
 		t.Error("zooming didn't show the actions page again")
 	}
@@ -79,17 +79,17 @@ func TestActionsPage(t *testing.T) {
 		t.Error("the actions page doesn't show the new zoom")
 	}
 	dark := app.DarkTheme()
-	app.Follow("whynot:theme")
+	app.Follow("whymark:theme")
 	if app.DarkTheme() == dark || !app.ActionsShowing() {
 		t.Error("the theme action didn't switch the theme, keeping the page")
 	}
 
-	app.Follow("whynot:journal")
+	app.Follow("whymark:journal")
 	if app.ActionsShowing() || !app.Journal() {
 		t.Error("the journal action didn't close the page and turn journal mode on")
 	}
 	app.ShowActions()
-	if !strings.Contains(string(app.actionsSource()), "| Journal mode | **on** | [turn off](whynot:journal) |") {
+	if !strings.Contains(string(app.actionsSource()), "| Journal mode | **on** | [turn off](whymark:journal) |") {
 		t.Error("in journal mode, the actions page doesn't offer to turn it off")
 	}
 	app.PressKey(Key{Name: "Escape"})
@@ -98,14 +98,14 @@ func TestActionsPage(t *testing.T) {
 	}
 }
 
-// TestActionLinksOnlyOnActionsPage checks that a "whynot:" link does
+// TestActionLinksOnlyOnActionsPage checks that a "whymark:" link does
 // nothing outside the actions page.
 func TestActionLinksOnlyOnActionsPage(t *testing.T) {
 	app, _ := journalApp(t)
 	dark := app.DarkTheme()
-	app.Follow("whynot:theme")
+	app.Follow("whymark:theme")
 	if app.DarkTheme() != dark {
-		t.Error("a whynot: link in a document switched the theme")
+		t.Error("a whymark: link in a document switched the theme")
 	}
 }
 
@@ -121,7 +121,7 @@ func TestActionsReplaceTOC(t *testing.T) {
 	if !app.ActionsShowing() || app.TOCShowing() {
 		t.Fatal("the actions page didn't replace the TOC")
 	}
-	app.Follow("whynot:toc")
+	app.Follow("whymark:toc")
 	if !app.TOCShowing() {
 		t.Fatal("the TOC action didn't show the TOC")
 	}
@@ -143,7 +143,7 @@ func TestActionsPageTouch(t *testing.T) {
 	if strings.Contains(source, "Keys") || strings.Contains(source, "## Reading") {
 		t.Errorf("after a touch, the actions page lists keys:\n%s", source)
 	}
-	if !strings.Contains(source, "| Journal mode | **off** | [turn on](whynot:journal) |") {
+	if !strings.Contains(source, "| Journal mode | **off** | [turn on](whymark:journal) |") {
 		t.Errorf("after a touch, the actions page lost its settings:\n%s", source)
 	}
 	app.Frame([]input.Event{input.PointerMove{X: 20, Y: 10}}, 5*time.Second)

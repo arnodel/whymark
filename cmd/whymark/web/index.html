@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>whynot</title>
+<title>whymark</title>
 <style>
   /* Ebitengine's js backend creates and manages its own <canvas>,
      appended to <body> and styled to fill it - nothing to set up here
@@ -13,9 +13,9 @@
 <body>
 <script src="wasm_exec.js"></script>
 <script>
-  // ?doc=<url> becomes browser/cmd/whynot's usual first command-line argument
+  // ?doc=<url> becomes cmd/whymark's usual first command-line argument
   // (flag.Arg(0), read by main() exactly like a desktop invocation's
-  // `whynot <url>`) - Go's own wasm runtime exposes argv as a plain
+  // `whymark <url>`) - Go's own wasm runtime exposes argv as a plain
   // settable array on the Go object, read once when run() starts, so
   // this needs no Go-side code at all. Anything other than "welcome" or
   // an http(s) URL (a local path, in particular - there's no
@@ -73,7 +73,7 @@
   // "application/wasm" Content-Type, which not every static file
   // server (e.g. an older `python3 -m http.server`) gets right for
   // .wasm - this version works regardless.
-  fetch("whynot.wasm")
+  fetch("whymark.wasm")
     .then((resp) => resp.arrayBuffer())
     .then((bytes) => WebAssembly.instantiate(bytes, go.importObject))
     .then((result) => go.run(result.instance));

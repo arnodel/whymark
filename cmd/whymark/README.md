@@ -1,37 +1,38 @@
-# whynot, the viewer
+# whymark, the viewer
 
-A Markdown document viewer built on the [whynot](../../../README.md) library and
+A viewer for Markdown documents and whymark documents, built on the
+[whynot](https://github.com/arnodel/whynot) rendering library and
 [Ebitengine](https://ebitengine.org/): open a file or a URL, follow links between
 documents, go back and forward, zoom, switch themes. Its Gio twin,
-[`giowhynot`](../giowhynot), behaves the same.
+[`giowhymark`](../giowhymark), behaves the same.
 
 ## Install
 
 ```bash
-brew install arnodel/tap/whynot
+brew install arnodel/tap/whymark
 ```
 
-or download a [release binary](https://github.com/arnodel/whynot/releases/latest), or
+or download a [release binary](https://github.com/arnodel/whymark/releases/latest), or
 
 ```bash
-go install github.com/arnodel/whymark/cmd/whynot@latest
+go install github.com/arnodel/whymark/cmd/whymark@latest
 ```
 
-On macOS, from a checkout, `make mac-app` in [`browser`](../..) makes `build/WhyNot.app`: a
+On macOS, from a checkout, `make mac-app` at the [root](../..) makes `build/WhyMark.app`: a
 proper app, with its name and icon in the Dock and the menu bar, and a microphone beside the
 prompt, which needs the bundle for its permissions. Started from Finder, it doesn't get the
 shell's environment: it reads the AI's key from the config file (see below).
 `make run-mac-app ARGS=examples/todo.md` builds it and runs it from the terminal, with its
 log there.
 
-It also runs in a web browser: **[try it](https://arnodel.github.io/whynot/)**, and see
+It also runs in a web browser: **[try it](https://arnodel.github.io/whymark/)**, and see
 [`web`](web) for how that's built and what differs.
 
 ## Use
 
 ```bash
-whynot path/to/document.md
-whynot https://raw.githubusercontent.com/arnodel/whynot/refs/heads/main/README.md
+whymark path/to/document.md
+whymark https://raw.githubusercontent.com/arnodel/whynot/refs/heads/main/README.md
 ```
 
 With no argument it opens its welcome page, which explains all this too. To open another
@@ -76,19 +77,19 @@ the to-do list use modules from [examples/lib](../../examples/lib): dice, AI ans
 remember earlier pages, and dates.
 
 whymark pages are kept on disk, in your user configuration directory (on macOS,
-`~/Library/Application Support/whynot/whymark`), so a document that asks to be resumed,
+`~/Library/Application Support/whymark`), so a document that asks to be resumed,
 like the to-do list, carries on where you left it the next time you open it; a link to it
 from its own page, like "Start over", starts it afresh. Each page has a URL of its own,
-ending in `@` and its page id (copy it from the actions page): opening it, in any whynot on
+ending in `@` and its page id (copy it from the actions page): opening it, in any whymark on
 the machine, carries on from that page.
 
-A document can also ask an AI, if it declares so, when whynot has an API key: it asks
+A document can also ask an AI, if it declares so, when whymark has an API key: it asks
 Claude, at your expense. Local documents can; ones from the web only if you start with
 `-remote-ai`. Without the AI, a document shows what it wrote for that case instead.
 
 The key comes from `ANTHROPIC_API_KEY`, if it's set, or else from a config file, which the
-app bundle reads too: `~/.config/whynot/config.yaml` (in `$XDG_CONFIG_HOME` if that's set),
-or else `whynot/config.yaml` in the system's config directory, such as
+app bundle reads too: `~/.config/whymark/config.yaml` (in `$XDG_CONFIG_HOME` if that's set),
+or else `whymark/config.yaml` in the system's config directory, such as
 `~/Library/Application Support` on macOS or `%AppData%` on Windows:
 
 ```yaml
@@ -98,7 +99,7 @@ anthropic-api-key: sk-ant-...
 or, to keep the key in a password store, a command that prints it:
 
 ```yaml
-anthropic-api-key-command: security find-generic-password -s whynot-claude-api-key -w
+anthropic-api-key-command: security find-generic-password -s whymark-claude-api-key -w
 ```
 
 The file is only trusted with either if no one else can read or write it: `chmod 600` it.
@@ -123,4 +124,4 @@ ignored because another comes first.
 
 The viewer is a thin program around the library: a `whynot.Panel` for the document,
 Ebitengine for the window and toolbar. Navigation, history, loading and theming live in
-`browser/internal/browser`, which `giowhynot` shares, so the two behave the same.
+`internal/browser`, which `giowhymark` shares, so the two behave the same.

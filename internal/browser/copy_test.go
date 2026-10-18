@@ -63,10 +63,10 @@ func TestCopyFromActions(t *testing.T) {
 	app.ShowActions()
 	// The page is longer than the window, so its source is checked.
 	page := func() string { return string(app.actionsSource()) }
-	if !strings.Contains(page(), "[Copy this page as Markdown](whynot:copy)") || strings.Contains(page(), "copied") {
+	if !strings.Contains(page(), "[Copy this page as Markdown](whymark:copy)") || strings.Contains(page(), "copied") {
 		t.Fatalf("the actions page is %q", page())
 	}
-	if got := copiedText(t, func() { app.Follow("whynot:copy") }); got != "# Notes\n\nSome notes.\n" {
+	if got := copiedText(t, func() { app.Follow("whymark:copy") }); got != "# Notes\n\nSome notes.\n" {
 		t.Errorf("the actions page's link copied %q", got)
 	}
 	if !app.ActionsShowing() || !strings.Contains(page(), "*copied*") {
@@ -75,7 +75,7 @@ func TestCopyFromActions(t *testing.T) {
 	app.HideOverlay()
 	app.ToggleJournal()
 	app.ShowActions()
-	if !strings.Contains(page(), "[Copy the journal as Markdown](whynot:copy)") || strings.Contains(page(), "copied") {
+	if !strings.Contains(page(), "[Copy the journal as Markdown](whymark:copy)") || strings.Contains(page(), "copied") {
 		t.Errorf("in journal mode, shown again, the actions page is %q", page())
 	}
 }
@@ -96,10 +96,10 @@ func TestCopySelection(t *testing.T) {
 		t.Errorf("copied the page selected all as %q", got)
 	}
 	app.ShowActions()
-	if !strings.Contains(string(app.actionsSource()), "[Copy the selection as Markdown](whynot:copy-selection)") {
+	if !strings.Contains(string(app.actionsSource()), "[Copy the selection as Markdown](whymark:copy-selection)") {
 		t.Errorf("with a selection, the actions page is %q", app.actionsSource())
 	}
-	if got := copiedText(t, func() { app.Follow("whynot:copy-selection") }); got != "# Notes\n\nSome *notes*." {
+	if got := copiedText(t, func() { app.Follow("whymark:copy-selection") }); got != "# Notes\n\nSome *notes*." {
 		t.Errorf("the actions page copied the selection as %q", got)
 	}
 }

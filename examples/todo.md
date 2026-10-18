@@ -13,8 +13,8 @@ and eggs under groceries", "done with the bank"), and the list follows. An AI re
 request and turns it into a few operations, which Lua checks and applies: the AI never
 touches the list itself. Each item's links mark it done or remove it, without asking the AI. Going back undoes, and
 journal mode shows the history. The list is still there the next time you open it. Without an
-AI, short commands do the same (see the page). Open it in whynot
-(`whynot browser/examples/todo.md`, with an API key for the AI, as the viewer's README says);
+AI, short commands do the same (see the page). Open it in whymark
+(`whymark examples/todo.md`, with an API key for the AI, as the viewer's README says);
 [whymark.md](../whymark.md) describes the format.
 
 ```lua

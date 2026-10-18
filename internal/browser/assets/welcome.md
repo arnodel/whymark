@@ -1,21 +1,22 @@
-# Welcome to Why Not? {{VERSION}}
+# Welcome to WhyMark {{VERSION}}
 
 {{BUILD}}
-**whynot** is a Markdown file renderer for [ebiten](https://ebitengine.org/) games. This app,
-`whynot`, is a small standalone viewer built on top of the library - point it at a file or a
-URL and it lays out and draws the document on screen. Only what's actually on screen is ever laid
-out, so even a very large document scrolls and resizes just as smoothly as a short one.
+**whymark** opens Markdown documents, from a file or a URL, and **whymark documents**:
+interactive pages written as Markdown with a little Lua, which keep their state, remember where
+you were, and can talk to an AI - games, chats, a to-do list you can speak to. It's built on
+[whynot](https://github.com/arnodel/whynot), a Markdown rendering library: only what's on screen
+is ever laid out, so even a very large document scrolls and resizes smoothly.
 
 ## Open a document
 
-- Start it with `whynot path/to/my/document.md`
+- Start it with `whymark path/to/my/document.md`
 - Copy a file path or an `http(s)` URL to your clipboard, then paste it with **{{PASTE_SHORTCUT}}**.
 {{ADDRESS_BAR_TIP}}
 
 ## Getting around
 
 The three-dot button at the right end of the toolbar, or **{{ACTIONS_SHORTCUT}}**, shows everything
-whynot can do, with its keys. Some of it:
+whymark can do, with its keys. Some of it:
 
 - **Mouse wheel** scrolls; resize the window any time to see the document reflow.
 - **↓** / **↑** scroll a bit at a time; **Space** / **Shift+Space** page down / up.
@@ -24,7 +25,7 @@ whynot can do, with its keys. Some of it:
 - Drag the scrollbar, on the right edge, to jump to a position.
 - Click a link to follow it: a link to a webpage opens in your browser, while one to a Markdown
   document opens right here - like
-  [whynot's own README](https://raw.githubusercontent.com/arnodel/whynot/main/README.md).
+  [whynot's README](https://raw.githubusercontent.com/arnodel/whynot/main/README.md).
   **Backspace** (or the back button) goes back, **Shift+Backspace** (or the forward button)
   goes forward.
 - The reload button re-fetches the current document.
@@ -34,7 +35,7 @@ whynot can do, with its keys. Some of it:
 
 Paste "welcome" at any time to come back to this page.
 
-## What the library renders
+## What it renders
 
 - Headings, paragraphs, emphasis, strong emphasis, and strikethrough
 - Inline code, and fenced or indented code blocks
@@ -64,4 +65,5 @@ A quick look at a few of those:
 
 ---
 
-See [the project on GitHub](https://github.com/arnodel/whynot) for more.
+See [the project on GitHub](https://github.com/arnodel/whymark) for more, including example
+whymark documents to try.

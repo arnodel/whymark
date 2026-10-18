@@ -16,17 +16,17 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 
-	"github.com/arnodel/whynot/backends/giobackend"
 	"github.com/arnodel/whymark/internal/browser"
+	"github.com/arnodel/whynot/backends/giobackend"
 	"github.com/arnodel/whynot/fonts"
 )
 
 // toolbarLogicalHeight is the address bar / button row's height, in dp
-// - matches cmd/whynot's own toolbarLogicalHeight.
+// - matches cmd/whymark's own toolbarLogicalHeight.
 const toolbarLogicalHeight = 36
 
 // toolbar is the back/forward/reload/TOC/actions button row and address
-// bar - cmd/giowhynot's own native-Gio counterpart to cmd/whynot's
+// bar - cmd/giowhymark's own native-Gio counterpart to cmd/whymark's
 // hand-rolled draw.go/layout.go/input.go. Unlike the document panel's
 // scroll/hover/click (shared via whynot.Controller), this input layer
 // isn't shared with ebitenbackend: these are plain momentary buttons,
@@ -266,7 +266,7 @@ func (tb *toolbar) layoutEditor(gtx layout.Context) layout.Dimensions {
 }
 
 // layoutLocation draws the read-only address bar text via giobackend,
-// matching cmd/whynot's own address bar exactly (same face, same
+// matching cmd/whymark's own address bar exactly (same face, same
 // middle-truncation for a long path/URL).
 func (tb *toolbar) layoutLocation(gtx layout.Context, app *browser.App) layout.Dimensions {
 	size := gtx.Constraints.Max
@@ -317,7 +317,7 @@ func hspace(px int) layout.Widget {
 // state - a disabled button ignores hover/pressed entirely, reading as
 // inert regardless of where the cursor is. fillColor is nil for "no
 // fill", i.e. the toolbar's own background shows through. Matches
-// cmd/whynot's own draw.go palette.
+// cmd/whymark's own draw.go palette.
 func buttonColors(enabled, hovered, pressed bool) (fillColor, iconTint color.Color) {
 	switch {
 	case !enabled:

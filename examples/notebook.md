@@ -8,8 +8,8 @@ whymark:
 
 A notebook: write something, and it's added to the list. Each entry is the text typed on one
 page, found again by walking back through the pages that led here, so going back and writing
-something else starts a different notebook from there. Open it in whynot
-(`whynot browser/examples/notebook.md`); [whymark.md](../whymark.md) describes the format.
+something else starts a different notebook from there. Open it in whymark
+(`whymark examples/notebook.md`); [whymark.md](../whymark.md) describes the format.
 
 ```lua
 -- entries returns what was written on the pages that led here, and on
