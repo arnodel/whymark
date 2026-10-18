@@ -20,7 +20,8 @@ import (
 // each page below its parent, the oldest of siblings on the left, and a
 // page centred over its children. In a corner of the tree view, it shows
 // the part of the tree around the selected page; expanded, it fills the
-// window, with the whole tree, and a box where the corner's part is.
+// document, where it pans and zooms, with a box where the corner's part
+// is.
 
 // A treeEase moves a number from one value to another, over a length of
 // time, easing out.
@@ -32,17 +33,14 @@ type treeEase struct {
 
 // at returns e's value at now.
 func (e treeEase) at(now time.Time) float64 {
-	if !e.moving(now) {
-		return e.to
-	}
-	f := float64(now.Sub(e.start)) / float64(e.length)
-	f = 1 - (1-f)*(1-f)*(1-f)
+	f, _ := easeOut(e.start, e.length, now)
 	return e.from + (e.to-e.from)*f
 }
 
 // moving reports whether e is still moving at now.
 func (e treeEase) moving(now time.Time) bool {
-	return e.length > 0 && now.Before(e.start.Add(e.length))
+	_, moving := easeOut(e.start, e.length, now)
+	return moving
 }
 
 // ease returns e moving on, from where it is at now, to to, over length.
@@ -58,8 +56,8 @@ func (t *tree) focusMap(length time.Duration) {
 	t.focusY = t.focusY.ease(float64(t.mapDepth[t.selected]), now, length)
 }
 
-// MapExpanded reports whether the map of the tree of pages is expanded.
-func (a *App) MapExpanded() bool { return a.tree != nil && a.tree.mapGrow.to == 1 }
+// mapExpanded reports whether the map of the tree of pages is expanded.
+func (a *App) mapExpanded() bool { return a.tree != nil && a.tree.mapGrow.to == 1 }
 
 // expandMap expands the map of the tree of pages to fill the window, or
 // shrinks it back to its corner, growing or shrinking smoothly.
@@ -108,6 +106,13 @@ func (a *App) mapScales() (least, most, open float64) {
 	return least, most, min(most, max(least, readable))
 }
 
+// mapSteps returns how far apart the expanded map's leaves and rows are,
+// in pixels, at its scale.
+func (a *App) mapSteps() (step, rowStep float64) {
+	k := a.tree.mapK * a.deviceScale
+	return k * mapStep, k * mapRowStep
+}
+
 // mapArea returns where the expanded map's dots are.
 func (a *App) mapArea() image.Rectangle {
 	s := a.deviceScale
@@ -129,18 +134,18 @@ func (a *App) clampMap() {
 		}
 		return max(half, min(float64(n)-half, c))
 	}
-	s := a.deviceScale
-	t.mapCX = clamp(t.mapCX, max(t.mapLeaves-1, 0), float64(big.Dx()), t.mapK*mapStep*s)
-	t.mapCY = clamp(t.mapCY, t.mapRows, float64(big.Dy()), t.mapK*mapRowStep*s)
+	step, rowStep := a.mapSteps()
+	t.mapCX = clamp(t.mapCX, max(t.mapLeaves-1, 0), float64(big.Dx()), step)
+	t.mapCY = clamp(t.mapCY, t.mapRows, float64(big.Dy()), rowStep)
 }
 
 // panMap moves the expanded map's view by dx, dy in pixels: towards the
 // tree's right and bottom for positive ones.
 func (a *App) panMap(dx, dy float64) {
 	t := a.tree
-	s := a.deviceScale
-	t.mapCX += dx / (t.mapK * mapStep * s)
-	t.mapCY += dy / (t.mapK * mapRowStep * s)
+	step, rowStep := a.mapSteps()
+	t.mapCX += dx / step
+	t.mapCY += dy / rowStep
 	a.clampMap()
 }
 
@@ -148,16 +153,16 @@ func (a *App) panMap(dx, dy float64) {
 // place.
 func (a *App) zoomMap(factor float64, p image.Point) {
 	t := a.tree
-	s := a.deviceScale
 	big := a.mapArea()
-	cx, cy := float64(big.Min.X+big.Dx()/2), float64(big.Min.Y+big.Dy()/2)
-	// Where p is, in the map's x and depth, before and after.
-	ux := t.mapCX + (float64(p.X)-cx)/(t.mapK*mapStep*s)
-	uy := t.mapCY + (float64(p.Y)-cy)/(t.mapK*mapRowStep*s)
+	dx := float64(p.X) - float64(big.Min.X+big.Dx()/2)
+	dy := float64(p.Y) - float64(big.Min.Y+big.Dy()/2)
+	// Where p is, in the map's x and depth, stays where it is.
+	step, rowStep := a.mapSteps()
+	ux, uy := t.mapCX+dx/step, t.mapCY+dy/rowStep
 	least, most, _ := a.mapScales()
 	t.mapK = max(least, min(most, t.mapK*factor))
-	t.mapCX = ux - (float64(p.X)-cx)/(t.mapK*mapStep*s)
-	t.mapCY = uy - (float64(p.Y)-cy)/(t.mapK*mapRowStep*s)
+	step, rowStep = a.mapSteps()
+	t.mapCX, t.mapCY = ux-dx/step, uy-dy/rowStep
 	a.clampMap()
 }
 
@@ -165,14 +170,14 @@ func (a *App) zoomMap(factor float64, p image.Point) {
 // selected page is in view, with a margin.
 func (a *App) keepSelectedOnMap() {
 	t := a.tree
-	s := a.deviceScale
 	big := a.mapArea()
 	keep := func(c, u, size, step float64) float64 {
 		half := max(0, size/2/step-1) // a step's margin
 		return max(u-half, min(u+half, c))
 	}
-	t.mapCX = keep(t.mapCX, t.mapX[t.selected], float64(big.Dx()), t.mapK*mapStep*s)
-	t.mapCY = keep(t.mapCY, float64(t.mapDepth[t.selected]), float64(big.Dy()), t.mapK*mapRowStep*s)
+	step, rowStep := a.mapSteps()
+	t.mapCX = keep(t.mapCX, t.mapX[t.selected], float64(big.Dx()), step)
+	t.mapCY = keep(t.mapCY, float64(t.mapDepth[t.selected]), float64(big.Dy()), rowStep)
 	a.clampMap()
 }
 
@@ -264,22 +269,26 @@ func (a *App) mapInput(e input.Event) {
 	}
 }
 
-// layoutMap places each page of t on the map: its x, counted in leaves
-// from the left, and its depth; and gives it its heat, from 0 for the
-// oldest page to 1 for the newest, by rank, so that a few pages much older
-// or newer than the rest don't make them all alike.
-func (t *tree) layoutMap() {
-	ids := slices.SortedFunc(maps.Keys(t.pages), func(x, y string) int {
+// rankPages ranks the pages of t by when they were made, giving each its
+// heat on the map: from 0 for the oldest to 1 for the newest, by rank, so
+// that a few pages much older or newer than the rest don't make them all
+// alike.
+func (t *tree) rankPages() {
+	t.mapByAge = slices.SortedFunc(maps.Keys(t.pages), func(x, y string) int {
 		return t.pages[x].Time.Compare(t.pages[y].Time)
 	})
-	t.mapByAge = ids
 	t.mapHeat = map[string]float64{}
-	for i, id := range ids {
+	for i, id := range t.mapByAge {
 		t.mapHeat[id] = 1
-		if len(ids) > 1 {
-			t.mapHeat[id] = float64(i) / float64(len(ids)-1)
+		if n := len(t.mapByAge); n > 1 {
+			t.mapHeat[id] = float64(i) / float64(n-1)
 		}
 	}
+}
+
+// layoutMap places each page of t on the map: its x, counted in leaves
+// from the left, and its depth.
+func (t *tree) layoutMap() {
 	t.mapX = map[string]float64{}
 	t.mapDepth = map[string]int{}
 	t.mapLeaves, t.mapRows = 0, 0
@@ -317,20 +326,20 @@ type treeMap struct {
 	// far apart its leaves and its rows are, and dot how big a dot is.
 	x0, y0, step, rowStep float64
 	dot                   int
-	// grown is how far it's expanded, from 0, in its corner, to 1, and
-	// box, in its own x and depth, the part the corner shows. icon is
-	// whether the corner shows only an icon, in rect, as it does in a
-	// window too small for it, or in the tree-map-icon experiment.
-	icon  bool
+	// icon is whether the corner shows only an icon, in rect: in a window
+	// too small for the map, or in the tree-map-icon experiment.
+	icon bool
+	// grown is how far it's expanded, from 0, in its corner, to 1.
 	grown float64
-	box   struct{ x0, y0, x1, y1 float64 }
+	// box is the part the corner shows, in the map's x and depth.
+	box struct{ x0, y0, x1, y1 float64 }
 }
 
 // treeMapGeometry returns where the map of the tree of pages is, if it's
-// shown: in the tree-map experiment. In its corner, a quarter of the
-// window, it shows the part around its focus, at a fixed scale, or just
-// an icon if that's too small; expanded, the whole tree, or the part
-// around the selected page, if it's too big.
+// shown, in the tree-map experiment: in its corner, a quarter of the
+// window, the part around its focus, at a fixed scale, or an icon if
+// that's too small; expanded, the document, at its own scale and middle
+// (see expandMap).
 func (a *App) treeMapGeometry() (treeMap, bool) {
 	t := a.tree
 	b := a.bounds
@@ -366,7 +375,7 @@ func (a *App) treeMapGeometry() (treeMap, bool) {
 	// so that the corner's part keeps its shape, around its middle (see
 	// expandMap, panMap and zoomMap).
 	big := full.Inset(pad)
-	bigStep, bigRowStep := t.mapK*step, t.mapK*rowStep
+	bigStep, bigRowStep := a.mapSteps()
 	bx0 := float64(big.Min.X+big.Dx()/2) - t.mapCX*bigStep
 	by0 := float64(big.Min.Y+big.Dy()/2) - t.mapCY*bigRowStep
 	m.step, m.rowStep = lerp(step, bigStep), lerp(rowStep, bigRowStep)
@@ -422,11 +431,9 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 		return
 	}
 	accent := a.Panel.View().HighlightColor()
-	thin := max(1, int(a.deviceScale))
+	thin := a.thin()
 	r := m.rect
-	bg := color.NRGBAModel.Convert(theme.BackgroundColor).(color.NRGBA)
-	bg.A = uint8(0xE6 + (0xFF-0xE6)*m.grown) // opaque, expanded
-	dst.DrawRect(r.Min.X, r.Min.Y, r.Dx(), r.Dy(), bg)
+	fill(dst, r, translucent(theme.BackgroundColor, uint8(0xE6+(0xFF-0xE6)*m.grown))) // opaque, expanded
 	if m.grown < 1 {
 		frame(dst, r, thin, theme.ThematicBreakColor)
 	}
@@ -473,7 +480,7 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 	if !a.hasPointer {
 		hovered = ""
 	}
-	heat := a.experiment("map-heat")
+	heat := a.experiment("tree-map-heat")
 	for id := range t.pages {
 		clr := theme.ThematicBreakColor
 		if heat {
@@ -502,11 +509,17 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 		frame(dst, box, thin, theme.TextColor)
 	}
 
-	if hovered == "" {
-		return
+	if hovered != "" {
+		a.drawMapCard(dst, m, hovered, wall, now)
 	}
-	// The card: in the corner, a quarter of the window's width, above the
-	// map; expanded, a tile's size, beside the pointer, inside the window.
+}
+
+// drawMapCard draws the card of page id, whose dot on m the pointer is on:
+// its picture and its label. In the corner, it's a quarter of the window's
+// width, above the map; expanded, a tile's size, beside the pointer.
+func (a *App) drawMapCard(dst canvas.Canvas, m treeMap, id string, wall time.Time, now time.Duration) {
+	theme := a.treeTheme()
+	thin, r := a.thin(), m.rect
 	b := a.bounds
 	gap := int(8 * a.deviceScale)
 	w := b.Dx() / 4
@@ -531,8 +544,8 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 		return // no room
 	}
 	fill(dst, card, theme.BackgroundColor)
-	a.drawThumb(dst, hovered, card, now)
-	a.drawTreeLabel(dst, hovered, card, wall)
+	a.drawThumb(dst, id, card, now)
+	a.drawTreeLabel(dst, id, card, wall)
 	frame(dst, card.Inset(-thin), thin, theme.TextColor)
 }
 
@@ -577,7 +590,7 @@ func (a *App) drawHeatScale(dst canvas.Canvas, m treeMap, now time.Time) {
 		return // no room
 	}
 	fill(dst, panel, theme.BackgroundColor)
-	frame(dst, panel, max(1, int(s)), theme.ThematicBreakColor)
+	frame(dst, panel, a.thin(), theme.ThematicBreakColor)
 	bar := image.Rect(panel.Min.X+pad, panel.Min.Y+pad, panel.Max.X-pad, panel.Min.Y+pad+barH)
 	for x := bar.Min.X; x < bar.Max.X; x++ {
 		h := float64(x-bar.Min.X) / float64(max(1, bar.Dx()-1))
@@ -587,7 +600,7 @@ func (a *App) drawHeatScale(dst canvas.Canvas, m treeMap, now time.Time) {
 	n := len(t.mapByAge)
 	ageAt := func(f float64) string { return shortAge(t.pages[t.mapByAge[int(f*float64(n-1)+0.5)]].Time, now) }
 	tick := func(x int) {
-		fill(dst, image.Rect(x, bar.Max.Y, x+max(1, int(s)), bar.Max.Y+pad/2), theme.ThematicBreakColor)
+		fill(dst, image.Rect(x, bar.Max.Y, x+a.thin(), bar.Max.Y+pad/2), theme.ThematicBreakColor)
 	}
 	// The ends' labels, flush with them, and between them those of the
 	// middle and the quarters, centred on their points, if they say
@@ -600,7 +613,7 @@ func (a *App) drawHeatScale(dst canvas.Canvas, m treeMap, now time.Time) {
 	if last != first {
 		right -= font.MeasureString(face, last).Ceil()
 		dst.DrawText(last, face, right, baseline, theme.TextColor)
-		tick(bar.Max.X - max(1, int(s)))
+		tick(bar.Max.X - a.thin())
 		right -= pad
 	}
 	shown := first
@@ -649,25 +662,8 @@ func shortAge(t, now time.Time) string {
 // drawMapIcon draws the map's icon in r on dst, in a box.
 func (a *App) drawMapIcon(dst canvas.Canvas, r image.Rectangle) {
 	theme := a.treeTheme()
-	thin := max(1, int(a.deviceScale))
-	bg := color.NRGBAModel.Convert(theme.BackgroundColor).(color.NRGBA)
-	bg.A = 0xE6
-	fill(dst, r, bg)
-	frame(dst, r, thin, theme.ThematicBreakColor)
+	fill(dst, r, translucent(theme.BackgroundColor, 0xE6))
+	frame(dst, r, a.thin(), theme.ThematicBreakColor)
 	in := r.Inset(r.Dx() / 8)
 	dst.DrawImage(tint(mapIcon, theme.TextColor), in.Min.X, in.Min.Y, in.Dx(), in.Dy())
-}
-
-// fill fills r on dst with clr.
-func fill(dst canvas.Canvas, r image.Rectangle, clr color.Color) {
-	r = r.Canon()
-	dst.DrawRect(r.Min.X, r.Min.Y, r.Dx(), r.Dy(), clr)
-}
-
-// frame draws a frame thick wide just inside r on dst, in clr.
-func frame(dst canvas.Canvas, r image.Rectangle, thick int, clr color.Color) {
-	fill(dst, image.Rect(r.Min.X, r.Min.Y, r.Max.X, r.Min.Y+thick), clr)
-	fill(dst, image.Rect(r.Min.X, r.Max.Y-thick, r.Max.X, r.Max.Y), clr)
-	fill(dst, image.Rect(r.Min.X, r.Min.Y, r.Min.X+thick, r.Max.Y), clr)
-	fill(dst, image.Rect(r.Max.X-thick, r.Min.Y, r.Max.X, r.Max.Y), clr)
 }

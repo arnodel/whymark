@@ -134,7 +134,7 @@ func TestTreeDrawAndClick(t *testing.T) {
 
 	// A click in the middle of id's frame, wherever the selection put it.
 	click := func(id string) {
-		for _, f := range app.treeFrames(app.Bounds()) {
+		for _, f := range app.treeFrames() {
 			if f.id == id {
 				p := f.rect.Min.Add(f.rect.Size().Div(2))
 				app.Frame([]input.Event{input.PointerButton{X: p.X, Y: p.Y, Button: input.ButtonPrimary, Down: true}}, 0)
@@ -501,7 +501,7 @@ func TestTreeMap(t *testing.T) {
 	// A click on it expands it; a click on a dot then selects the page,
 	// and shrinks it back.
 	app.Frame([]input.Event{input.PointerButton{X: m.rect.Min.X + 2, Y: m.rect.Min.Y + 2, Button: input.ButtonPrimary, Down: true}}, 0)
-	if !app.MapExpanded() || app.tree.selected != lamp {
+	if !app.mapExpanded() || app.tree.selected != lamp {
 		t.Fatalf("a click on the map didn't expand it, or selected %s", app.tree.selected)
 	}
 	m, _ = app.treeMapGeometry()
@@ -522,8 +522,8 @@ func TestTreeMap(t *testing.T) {
 		input.PointerButton{X: h.X, Y: h.Y, Button: input.ButtonPrimary, Down: true},
 		input.PointerButton{X: h.X, Y: h.Y, Button: input.ButtonPrimary},
 	}, 0)
-	if app.tree.selected != hall || app.MapExpanded() {
-		t.Errorf("clicking the hall's dot selected %s, the map expanded: %v", app.tree.selected, app.MapExpanded())
+	if app.tree.selected != hall || app.mapExpanded() {
+		t.Errorf("clicking the hall's dot selected %s, the map expanded: %v", app.tree.selected, app.mapExpanded())
 	}
 	app.Back()
 	if app.tree.selected != lamp {
@@ -539,13 +539,13 @@ func TestTreeMap(t *testing.T) {
 		func() { press(app, "M") },
 	} {
 		press(app, "M")
-		if !app.MapExpanded() {
+		if !app.mapExpanded() {
 			t.Fatal("M didn't expand the map")
 		}
 		shrink()
-		if app.MapExpanded() || !app.TreeShowing() || app.tree.selected != lamp {
+		if app.mapExpanded() || !app.TreeShowing() || app.tree.selected != lamp {
 			t.Errorf("shrinking the map left it expanded (%v), the tree showing (%v), %s selected",
-				app.MapExpanded(), app.TreeShowing(), app.tree.selected)
+				app.mapExpanded(), app.TreeShowing(), app.tree.selected)
 		}
 	}
 
@@ -568,7 +568,7 @@ func TestTreeMapIcon(t *testing.T) {
 	}
 	c := m.rect.Min.Add(m.rect.Size().Div(2))
 	app.Frame([]input.Event{input.PointerButton{X: c.X, Y: c.Y, Button: input.ButtonPrimary, Down: true}}, 0)
-	if !app.MapExpanded() {
+	if !app.mapExpanded() {
 		t.Error("a click on the map's icon didn't expand the map")
 	}
 	app.Back()
@@ -684,8 +684,8 @@ func TestTreeMapPanZoom(t *testing.T) {
 		input.PointerButton{X: p.X + 60, Y: p.Y, Button: input.ButtonPrimary},
 	}, 0)
 	m3, _ := app.treeMapGeometry()
-	if d := m3.at("p190").X - p.X; d != 60 || app.tree.selected != "p200" || !app.MapExpanded() {
-		t.Errorf("a drag moved the map by %d, selected %s, left it expanded: %v", d, app.tree.selected, app.MapExpanded())
+	if d := m3.at("p190").X - p.X; d != 60 || app.tree.selected != "p200" || !app.mapExpanded() {
+		t.Errorf("a drag moved the map by %d, selected %s, left it expanded: %v", d, app.tree.selected, app.mapExpanded())
 	}
 	// Zooming keeps where the pointer is in place, and stops at the
 	// whole tree.
@@ -712,8 +712,8 @@ func TestTreeMapPanZoom(t *testing.T) {
 		input.PointerButton{X: r.X, Y: r.Y, Button: input.ButtonPrimary, Down: true},
 		input.PointerButton{X: r.X, Y: r.Y, Button: input.ButtonPrimary},
 	}, 0)
-	if app.tree.selected != "p0" || app.MapExpanded() {
-		t.Errorf("a tap on p0's dot selected %s, left the map expanded: %v", app.tree.selected, app.MapExpanded())
+	if app.tree.selected != "p0" || app.mapExpanded() {
+		t.Errorf("a tap on p0's dot selected %s, left the map expanded: %v", app.tree.selected, app.mapExpanded())
 	}
 }
 
@@ -727,8 +727,8 @@ func TestTreeMapToolbarBack(t *testing.T) {
 	press(app, "M")
 	app.Frame([]input.Event{input.PointerButton{X: 10, Y: 10, Button: input.ButtonPrimary, Down: true}}, 0)
 	app.Back() // the toolbar's button
-	if !app.TreeShowing() || app.MapExpanded() || app.tree.selected != shout {
-		t.Errorf("the toolbar's Back left the tree showing: %v, the map expanded: %v", app.TreeShowing(), app.MapExpanded())
+	if !app.TreeShowing() || app.mapExpanded() || app.tree.selected != shout {
+		t.Errorf("the toolbar's Back left the tree showing: %v, the map expanded: %v", app.TreeShowing(), app.mapExpanded())
 	}
 }
 

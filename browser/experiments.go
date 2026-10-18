@@ -21,7 +21,7 @@ var experiments = []experiment{
 	{name: "tree-bus", text: "Rows hanging from a line in the tree of pages"},
 	{name: "tree-map", text: "A map of the whole tree of pages", on: true},
 	{name: "tree-map-icon", text: "Only an icon in the corner for the map of the tree of pages"},
-	{name: "map-heat", text: "Pages coloured by age on the map of the tree of pages", on: true},
+	{name: "tree-map-heat", text: "Pages coloured by age on the map of the tree of pages", on: true},
 }
 
 // experiment reports whether the experiment name is on.

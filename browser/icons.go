@@ -26,10 +26,10 @@ func decodeIcon(name string) image.Image {
 	return img
 }
 
-// BackIcon/ForwardIcon/ReloadIcon/TOCIcon/TreeIcon/ActionsIcon are the toolbar
-// buttons' icons - light, mostly-white silhouettes on a transparent
-// background, so a backend can tint them to match a button's current
-// state. ActionsIcon, a vertical ellipsis, reads as "more things to do":
+// BackIcon/ForwardIcon/ReloadIcon/TOCIcon/TreeIcon/ActionsIcon are the
+// toolbar buttons' icons - light, mostly-white silhouettes on a
+// transparent background, so a backend can tint them to match a button's
+// current state. ActionsIcon, a vertical ellipsis, reads as "more things to do":
 // it opens the actions page, where zoom and the theme are too.
 var (
 	BackIcon    = decodeIcon("arrow_back.png")

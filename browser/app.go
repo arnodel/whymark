@@ -721,7 +721,7 @@ func samePage(x, y *url.URL) bool {
 // - the most recently visited "place" from the user's perspective -
 // without consuming a history entry.
 func (a *App) Back() {
-	if a.MapExpanded() {
+	if a.mapExpanded() {
 		a.expandMap(false) // back to the tiles
 		return
 	}

@@ -54,8 +54,6 @@ func init() {
 		{name: "reload", keys: []Key{{Name: "R", Shortcut: true}}, run: (*App).Reload, closes: true},
 		{name: "toc", keys: []Key{{Name: "T", Shortcut: true}}, run: (*App).ToggleTOC, closes: true},
 		{name: "tree", keys: []Key{{Name: "G", Shortcut: true}}, run: (*App).ToggleTree, closes: true},
-		{name: "open", keys: []Key{{Name: "Enter"}}, run: (*App).OpenSelected},
-		{name: "map", keys: []Key{{Name: "M"}}, run: func(*App) {}}, // the tree's (see treeKey)
 		{name: "journal", keys: []Key{{Name: "J", Shortcut: true}}, run: (*App).ToggleJournal, closes: true},
 		{name: "theme", keys: []Key{{Name: "L", Shortcut: true, Shift: true}}, run: func(a *App) { a.SetTheme(!a.darkTheme) }},
 		{name: "zoom-in", keys: []Key{zoomKey("=", true)}, run: (*App).ZoomIn},
@@ -108,15 +106,16 @@ func (a *App) Keys() []Key {
 	for _, c := range commands {
 		keys = append(keys, c.keys...)
 	}
-	return append(keys, experimentKeys()...)
+	return append(keys, treeKeys()...)
 }
 
 // PressKey runs the command k runs, if any, reporting whether there was
 // one. A key's command runs as it is, whatever is showing: Back closes
 // an overlay, for instance, as it does from the toolbar.
 //
-// While the tree of pages shows, the arrow keys, Enter and Escape are its
-// own, and a command that changes what's shown closes it first.
+// While the tree of pages shows, the keys it moves with are its own (see
+// treeKey), and a command that changes what's shown closes it first,
+// except Back and Forward, which undo and redo its moves.
 func (a *App) PressKey(k Key) bool {
 	a.touch = false
 	k.Repeats = false
@@ -161,7 +160,7 @@ func (a *App) runCommand(name string) {
 // keyNames is how keys whose name isn't the symbol on them are written.
 var keyNames = map[string]string{
 	"Up": "↑", "Down": "↓", "Left": "←", "Right": "→",
-	"Escape": "Esc", "Enter": "↵", "-": "−",
+	"Escape": "Esc", "-": "−",
 }
 
 // String returns k as a person would write it: "Cmd+J", "Shift+Space".
