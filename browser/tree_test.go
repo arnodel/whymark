@@ -438,3 +438,35 @@ func TestTreePathAlongParentRow(t *testing.T) {
 		t.Errorf("the path shown from s to its cousin r is %v, want s, p, q and r", on)
 	}
 }
+
+// TestTreeBusPath checks the path drawn as in an organisation chart.
+func TestTreeBusPath(t *testing.T) {
+	app, _, lamp, shout := treeApp(t)
+	app.FollowAnchor("cellar") // a child of the shout's page
+	app.ShowTree()
+	lit := func() int {
+		_, path := app.busLines(app.shownFrames(time.Now()))
+		return len(path)
+	}
+	// Up: the line down from the shout's page, along the children's
+	// line, and down to the cellar's page.
+	press(app, "Up")
+	if n := lit(); n != 3 {
+		t.Errorf("after going up, %d lines on the path, want 3", n)
+	}
+	// Across: down from the lamp's page's row line, along it, and down to
+	// the shout's page; not up to the hall. Then down to the cellar.
+	press(app, "Left")
+	if app.tree.selected != lamp {
+		t.Fatalf("%s is selected, want %s", app.tree.selected, lamp)
+	}
+	if n := lit(); n != 3 {
+		t.Errorf("after going across, %d lines on the path, want 3", n)
+	}
+	// Back on the page it was opened from, there's no path.
+	press(app, "Right")
+	press(app, "Down")
+	if app.tree.selected == shout || lit() != 0 {
+		t.Errorf("on the page the view was opened from, %d lines on the path", lit())
+	}
+}

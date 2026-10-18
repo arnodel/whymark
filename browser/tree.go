@@ -636,6 +636,99 @@ func (a *App) treeLines(frames []treeFrame) (lines, path []image.Rectangle) {
 	return lines, path
 }
 
+// busLines returns the lines of the tree view as treeLines does, drawn as
+// in an organisation chart: each row hangs from a line across the gap
+// above it, from which a line goes up to its parent, if it's shown, and
+// one goes down to each page. The path lights each line it goes along:
+// those of a row only if it goes along it, from a page or its parent to
+// another.
+func (a *App) busLines(frames []treeFrame) (lines, path []image.Rectangle) {
+	t := a.tree
+	thin := max(1, int(a.deviceScale))
+	gap := int(treeGap * a.deviceScale)
+	at := map[string]image.Rectangle{}
+	for _, f := range frames {
+		at[f.id] = f.rect
+	}
+	on := a.shownPath()
+	add := func(onPath bool, line func(thick int) image.Rectangle) {
+		if onPath {
+			path = append(path, line(3*thin))
+		} else {
+			lines = append(lines, line(thin))
+		}
+	}
+	vertical := func(x, y0, y1 int) func(int) image.Rectangle {
+		return func(thick int) image.Rectangle {
+			return image.Rect(x-thick/2, min(y0, y1), x-thick/2+thick, max(y0, y1))
+		}
+	}
+	horizontal := func(x0, x1, y int) func(int) image.Rectangle {
+		return func(thick int) image.Rectangle {
+			return image.Rect(min(x0, x1)-thick/2, y-thick/2, max(x0, x1)-thick/2+thick, y-thick/2+thick)
+		}
+	}
+	middle := func(r image.Rectangle) int { return r.Min.X + r.Dx()/2 }
+
+	// A row's pages, the page lined up under its parent, and its parent,
+	// "" for none, which isn't shown for the parent's row.
+	type row struct {
+		ids          []string
+		anchor, over string
+		shown        bool
+	}
+	var rows []row
+	parent := t.pages[t.selected].Parent
+	if parent != "" {
+		grandparent := t.pages[parent].Parent
+		rows = append(rows, row{t.children[grandparent], parent, grandparent, false})
+	}
+	rows = append(rows, row{t.children[parent], t.selected, parent, parent != ""})
+	if child := t.preferredChild(t.selected); child != "" {
+		rows = append(rows, row{t.children[t.selected], child, t.selected, true})
+	}
+	for _, r := range rows {
+		anchor, ok := at[r.anchor]
+		if !ok {
+			continue
+		}
+		y := anchor.Min.Y - gap/2
+		up := middle(anchor) // where the line up meets the row's
+		if r.shown {
+			up = middle(at[r.over])
+		}
+		// The points the path joins along the row: its pages on it, and
+		// the line up, if it goes on up.
+		var xs, points []int
+		xs = append(xs, up)
+		for _, id := range r.ids {
+			if f, ok := at[id]; ok {
+				xs = append(xs, middle(f))
+				if on[id] {
+					points = append(points, middle(f))
+				}
+			}
+		}
+		if on[r.over] {
+			points = append(points, up)
+		}
+		along := len(points) >= 2
+		lines = append(lines, horizontal(slices.Min(xs), slices.Max(xs), y)(thin))
+		if along {
+			path = append(path, horizontal(slices.Min(points), slices.Max(points), y)(3*thin))
+		}
+		for _, id := range r.ids {
+			if f, ok := at[id]; ok {
+				add(along && on[id], vertical(middle(f), y, f.Min.Y))
+			}
+		}
+		if r.shown {
+			add(along && on[r.over], vertical(up, at[r.over].Max.Y, y))
+		}
+	}
+	return lines, path
+}
+
 // drawTree draws the tree view, through its camera.
 func (a *App) drawTree(dst canvas.Canvas, now time.Duration) {
 	t := a.tree
@@ -649,6 +742,9 @@ func (a *App) drawTree(dst canvas.Canvas, now time.Duration) {
 	dst = window.Transform(camera)
 	frames := a.shownFrames(wall)
 	lines, path := a.treeLines(frames)
+	if a.experiment("tree-bus") {
+		lines, path = a.busLines(frames)
+	}
 	for _, l := range lines {
 		dst.DrawRect(l.Min.X, l.Min.Y, l.Dx(), l.Dy(), line)
 	}
