@@ -552,3 +552,23 @@ func TestTreeMap(t *testing.T) {
 		t.Error("the map is shown with it turned off")
 	}
 }
+
+// TestTreeMapSmallWindow checks the map in small windows: the corner takes
+// more of the window, and in a tiny one, only expanding shows it.
+func TestTreeMapSmallWindow(t *testing.T) {
+	app, _, _, _ := treeApp(t)
+	app.Relayout(400, 300, 1, 0)
+	app.ShowTree()
+	m, ok := app.treeMapGeometry()
+	if !ok || m.hidden || m.rect.Dx() < 120 || m.rect.Dy() < 80 {
+		t.Fatalf("in a small window, the map's corner is %v, hidden: %v", m.rect, m.hidden)
+	}
+	app.Relayout(200, 120, 1, 0)
+	if m, ok := app.treeMapGeometry(); !ok || !m.hidden {
+		t.Fatalf("in a tiny window, the map's corner isn't hidden")
+	}
+	press(app, "M")
+	if m, _ := app.treeMapGeometry(); !app.MapExpanded() || m.grown != 1 {
+		t.Error("in a tiny window, M didn't expand the map")
+	}
+}

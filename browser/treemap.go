@@ -109,28 +109,34 @@ type treeMap struct {
 	x0, y0, step, rowStep float64
 	dot                   int
 	// grown is how far it's expanded, from 0, in its corner, to 1, and
-	// box, in its own x and depth, the part the corner shows.
-	grown float64
-	box   struct{ x0, y0, x1, y1 float64 }
+	// box, in its own x and depth, the part the corner shows. hidden is
+	// whether the corner is too small to show, in a tiny window: the map
+	// shows only expanded.
+	hidden bool
+	grown  float64
+	box    struct{ x0, y0, x1, y1 float64 }
 }
 
 // treeMapGeometry returns where the map of the tree of pages is, if it's
-// shown: in the tree-map experiment, in a window big enough for it. In its
-// corner, it shows the part around its focus, at a fixed scale; expanded,
-// the whole tree, or the part around the selected page, if it's too big.
+// shown: in the tree-map experiment. In its corner, a quarter of the
+// window, or more in a small one, it shows the part around its focus, at
+// a fixed scale; expanded, the whole tree, or the part around the
+// selected page, if it's too big.
 func (a *App) treeMapGeometry() (treeMap, bool) {
 	t := a.tree
 	b := a.bounds
 	s := a.deviceScale
-	w, h := b.Dx()/4, b.Dy()/4
-	if t == nil || !a.experiment("tree-map") || float64(w) < 120*s || float64(h) < 60*s {
+	if t == nil || !a.experiment("tree-map") || b.Empty() {
 		return treeMap{}, false
 	}
+	minW, minH := int(120*s), int(80*s)
+	w := min(max(b.Dx()/4, minW), b.Dx()/2)
+	h := min(max(b.Dy()/4, minH), b.Dy()/2)
 	now := time.Now()
 	margin, pad := int(12*s), int(10*s)
 	corner := image.Rect(b.Max.X-margin-w, b.Max.Y-margin-h, b.Max.X-margin, b.Max.Y-margin)
 	full := b.Inset(margin)
-	m := treeMap{tree: t, grown: t.mapGrow.at(now)}
+	m := treeMap{tree: t, grown: t.mapGrow.at(now), hidden: w < minW || h < minH}
 	lerp := func(x, y float64) float64 { return x + (y-x)*m.grown }
 	m.rect = image.Rect(
 		int(lerp(float64(corner.Min.X), float64(full.Min.X))), int(lerp(float64(corner.Min.Y), float64(full.Min.Y))),
@@ -202,7 +208,7 @@ func (m treeMap) dotAt(p image.Point) string {
 // shown, or "".
 func (a *App) mapHovered() string {
 	m, ok := a.treeMapGeometry()
-	if !ok || !a.hasPointer {
+	if !ok || !a.hasPointer || m.hidden && m.grown == 0 {
 		return ""
 	}
 	return m.dotAt(a.pointer)
@@ -213,7 +219,7 @@ func (a *App) mapHovered() string {
 // picture and its label.
 func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) {
 	m, ok := a.treeMapGeometry()
-	if !ok {
+	if !ok || m.hidden && m.grown == 0 {
 		return
 	}
 	t := a.tree
