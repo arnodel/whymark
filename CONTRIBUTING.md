@@ -1,6 +1,7 @@
 # Contributing to whymark
 
 Thank you for your interest in whymark! This page explains how the project is worked on.
+[ARCHITECTURE.md](ARCHITECTURE.md) explains how the code is organized and why.
 
 ## Building and testing
 
