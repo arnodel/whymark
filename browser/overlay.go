@@ -18,6 +18,7 @@ const (
 // current document, as kind. The document's View is kept aside, where
 // it was, until hideOverlay; one overlay replaces another.
 func (a *App) showOverlay(kind overlayKind, source []byte) {
+	a.HideTree()
 	docView := a.Panel.View()
 	if a.overlaid != nil {
 		docView = a.overlaid

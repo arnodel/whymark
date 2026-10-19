@@ -10,8 +10,8 @@ import (
 // A Key is a key press that runs a command: the key's name, and the
 // modifiers held with it. Names are a key's main symbol: a letter or
 // digit in upper case ("J", "0"), a punctuation mark ("[", "=", "/"), or
-// one of "Space", "Backspace", "Escape", "Up", "Down", "Left" and
-// "Right".
+// one of "Space", "Backspace", "Enter", "Escape", "Up", "Down", "Left"
+// and "Right".
 type Key struct {
 	Name string
 	// Shortcut is the platform's modifier for shortcuts: Cmd on macOS,
@@ -53,6 +53,7 @@ func init() {
 		{name: "forward", keys: forwardKeys(), run: (*App).Forward, closes: true},
 		{name: "reload", keys: []Key{{Name: "R", Shortcut: true}}, run: (*App).Reload, closes: true},
 		{name: "toc", keys: []Key{{Name: "T", Shortcut: true}}, run: (*App).ToggleTOC, closes: true},
+		{name: "tree", keys: []Key{{Name: "G", Shortcut: true}}, run: (*App).ToggleTree, closes: true},
 		{name: "journal", keys: []Key{{Name: "J", Shortcut: true}}, run: (*App).ToggleJournal, closes: true},
 		{name: "theme", keys: []Key{{Name: "L", Shortcut: true, Shift: true}}, run: func(a *App) { a.SetTheme(!a.darkTheme) }},
 		{name: "zoom-in", keys: []Key{zoomKey("=", true)}, run: (*App).ZoomIn},
@@ -105,17 +106,27 @@ func (a *App) Keys() []Key {
 	for _, c := range commands {
 		keys = append(keys, c.keys...)
 	}
-	return keys
+	return append(keys, treeKeys()...)
 }
 
 // PressKey runs the command k runs, if any, reporting whether there was
 // one. A key's command runs as it is, whatever is showing: Back closes
 // an overlay, for instance, as it does from the toolbar.
+//
+// While the tree of pages shows, the keys it moves with are its own (see
+// treeKey), and a command that changes what's shown closes it first,
+// except Back and Forward, which undo and redo its moves.
 func (a *App) PressKey(k Key) bool {
 	a.touch = false
 	k.Repeats = false
+	if a.tree != nil && (a.treeKey(k) || a.experimentKey(k)) {
+		return true
+	}
 	for _, c := range commands {
 		if slices.ContainsFunc(c.keys, func(ck Key) bool { ck.Repeats = false; return ck == k }) {
+			if c.closes && !slices.Contains([]string{"tree", "back", "forward"}, c.name) {
+				a.HideTree()
+			}
 			c.run(a)
 			return true
 		}
@@ -127,6 +138,11 @@ func (a *App) PressKey(k Key) bool {
 // closing the page first if the command changes what's shown, or else
 // showing the page again, as the command left things.
 func (a *App) runCommand(name string) {
+	if name, ok := strings.CutPrefix(name, "experiment/"); ok {
+		a.toggleExperiment(name)
+		a.refreshActions()
+		return
+	}
 	i := slices.IndexFunc(commands, func(c command) bool { return c.name == name })
 	if i < 0 {
 		return

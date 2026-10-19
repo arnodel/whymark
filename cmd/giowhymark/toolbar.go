@@ -34,8 +34,8 @@ const toolbarLogicalHeight = 36
 // extracting a second shared implementation - see the browser package's
 // own doc comment.
 type toolbar struct {
-	back, forward, reload, toc widget.Clickable
-	actions                    widget.Clickable
+	back, forward, reload, toc, tree widget.Clickable
+	actions                          widget.Clickable
 
 	// addressClick wraps the read-only address bar display (only laid
 	// out while !editing) purely to detect a click-to-edit, the same
@@ -87,13 +87,14 @@ func (tb *toolbar) update(gtx layout.Context, app *browser.App) {
 	forwardClicked := tb.forward.Clicked(gtx)
 	reloadClicked := tb.reload.Clicked(gtx)
 	tocClicked := tb.toc.Clicked(gtx)
+	treeClicked := tb.tree.Clicked(gtx)
 	actionsClicked := tb.actions.Clicked(gtx)
 
 	// Gio's key-focus model is independent of pointer clicks (clicking
 	// a widget that doesn't itself claim key focus never blurs whatever
 	// does) - so clicking any of these while editing the address bar
 	// needs an explicit cancel, same reason as document.onPress.
-	if backClicked || forwardClicked || reloadClicked || tocClicked || actionsClicked {
+	if backClicked || forwardClicked || reloadClicked || tocClicked || treeClicked || actionsClicked {
 		tb.cancelEdit()
 	}
 
@@ -108,6 +109,9 @@ func (tb *toolbar) update(gtx layout.Context, app *browser.App) {
 	}
 	if tocClicked {
 		app.ToggleTOC()
+	}
+	if treeClicked {
+		app.ToggleTree()
 	}
 	if actionsClicked {
 		app.ToggleActions()
@@ -197,6 +201,8 @@ func (tb *toolbar) layout(gtx layout.Context, app *browser.App) layout.Dimension
 		layout.Rigid(iconButton(&tb.reload, browser.ReloadIcon, btn, app.CanReload(), false)),
 		layout.Rigid(hspace(pad)),
 		layout.Rigid(iconButton(&tb.toc, browser.TOCIcon, btn, app.CanShowTOC(), app.TOCShowing())),
+		layout.Rigid(hspace(pad)),
+		layout.Rigid(iconButton(&tb.tree, browser.TreeIcon, btn, app.CanShowTree(), app.TreeShowing())),
 		layout.Flexed(1, tb.addressBar(app)),
 		layout.Rigid(iconButton(&tb.actions, browser.ActionsIcon, btn, true, app.ActionsShowing())),
 		layout.Rigid(hspace(pad)),

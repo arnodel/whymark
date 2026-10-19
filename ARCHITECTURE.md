@@ -22,7 +22,7 @@ whynot lays out and draws Markdown on a `canvas.Canvas`, which Ebitengine and Gi
 | `engine` | The engine: `Engine`, its stores of pages (`SQLiteStore`, `FileStore`), capabilities and grants. |
 | `engine/compile` | Turns a document's source into a `Program`: its passages, its Lua, its settings. Knows nothing of turns. |
 | `engine/ai`, `engine/ai/anthropic` | The AI capability, and a provider for it. |
-| `browser` | The browser: navigation, history, the journal, selection, the prompt and its microphone, the actions page. |
+| `browser` | The browser: navigation, history, the journal, the tree of pages, selection, the prompt and its microphone, the actions page. |
 | `cmd/whymark`, `cmd/giowhymark` | The viewers: the browser in an Ebitengine window, and in a Gio one. |
 | `internal/appsetup` | How the viewers are set up: their data directory, their config file, the engine they build (its store, its AI, which documents may use it), and where the user's data is kept. |
 | `internal/macapp` | Makes a macOS app bundle around a viewer's binary. |
@@ -78,6 +78,13 @@ and draw it on a canvas.
   it arrives. A page still arriving shows waiting dots after a second without growing.
 - **The journal** shows the pages that led to the current one, as one scrollable column
   (`ViewStack`). A page opened from its URL loads its trail from the engine in the background.
+- **The tree of pages** shows a document's pages, from `Pages`, around the current one: tiles
+  drawn through `canvas.Transform`, with a map of the whole tree (`tree.go`, `treedraw.go`,
+  `treemap.go`). Pages this window hasn't shown are loaded with `Saved`, in the background.
+  Moving around it is the window's own business: selecting a page isn't a visit, opening one
+  is.
+- **Experiments** (`experiments.go`) are features being tried out, turned on and off from the
+  actions page while the browser runs, and not kept.
 - **The prompt** is the page's input block; its microphone turns speech into text with a
   `Recognizer` (the Speech framework on macOS, through purego), driven by a `Listener`.
 - **What it keeps for the user** goes through `UserData`, which the program provides: in memory
@@ -107,7 +114,7 @@ State is one of three kinds, and its kind says where it lives:
 |---|---|---|---|
 | **The engine's** | What a page *is*: it must come out the same whichever browser shows it. | The engine, and its store. | Documents' state, pages, the AI's answers, dice rolls. |
 | **The user's** | What the person chose or did, which should outlive a window. | Kept by the program, on the user's behalf, behind interfaces the browser uses (`UserData`). | The latest page of each document, settings, grants and trust, visits across documents. |
-| **The browser's** | What one window is doing right now. | The browser, in memory. | The current page, this window's back and forward, scroll positions, the journal being on, the selection, the prompt's draft. |
+| **The browser's** | What one window is doing right now. | The browser, in memory. | The current page, this window's back and forward, scroll positions, the journal being on, the selection, where the tree of pages is, the prompt's draft. |
 
 To place something new, ask: **does it change what a page contains?** Then it's the engine's.
 **Should it outlive the window, as the person's?** Then it's the user's. Otherwise it's the
@@ -128,7 +135,6 @@ browser.
 
 ## Planned
 
-- A view of the tree of pages, with `Pages` and `Visit`, drawn on the canvas, in both viewers.
 - Pages with owners, for an engine serving several people; share tokens that don't expose a
   page's ancestors (#1).
 - Recording which version of a document made each page, so that continuing from a page made by

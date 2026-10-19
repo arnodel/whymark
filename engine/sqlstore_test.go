@@ -3,6 +3,7 @@
 package engine
 
 import (
+	"database/sql"
 	"path/filepath"
 	"testing"
 	"time"
@@ -27,8 +28,8 @@ func newEngineOn(t *testing.T, store Store) *Engine {
 }
 
 // TestEnginePages checks the list of a document's pages: every page, with
-// its parent, passage and title, by when it was made, from the Store and
-// from a new engine on it alike.
+// its parent, passage, title and input, by when it was made, from the
+// Store and from a new engine on it alike.
 func TestEnginePages(t *testing.T) {
 	files := map[string]string{"cave.md": "---\nwhymark:\n  version: 1\n---\n# Entrance\n\n[In](#hall)\n\n# Hall\n\n[Out](#entrance)\n"}
 	store := newSQLiteStore(t)
@@ -36,6 +37,7 @@ func TestEnginePages(t *testing.T) {
 	start := take(t, e, whymark.Request{Location: file("cave.md")})
 	hall := follow(t, e, start, "#hall")
 	again := follow(t, e, start, "#hall") // a sibling of hall
+	typed := take(t, e, whymark.Request{Location: file("cave.md"), FromPageID: start.PageID, Input: map[string]string{"word": "xyzzy"}})
 
 	document := whymark.DocumentOf(file("cave.md"))
 	for _, engine := range []*Engine{e, newEngineOn(t, store)} {
@@ -43,17 +45,18 @@ func TestEnginePages(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(pages) != 3 {
-			t.Fatalf("%d pages, want 3: %+v", len(pages), pages)
+		if len(pages) != 4 {
+			t.Fatalf("%d pages, want 4: %+v", len(pages), pages)
 		}
-		want := []struct{ id, parent, passage, title string }{
-			{start.PageID, "", "entrance", "Entrance"},
-			{hall.PageID, start.PageID, "hall", "Hall"},
-			{again.PageID, start.PageID, "hall", "Hall"},
+		want := []struct{ id, parent, passage, title, input string }{
+			{start.PageID, "", "entrance", "Entrance", ""},
+			{hall.PageID, start.PageID, "hall", "Hall", ""},
+			{again.PageID, start.PageID, "hall", "Hall", ""},
+			{typed.PageID, start.PageID, "entrance", "Entrance", "xyzzy"},
 		}
 		for i, w := range want {
 			p := pages[i]
-			if p.ID != w.id || p.Parent != w.parent || p.Passage != w.passage || p.Title != w.title {
+			if p.ID != w.id || p.Parent != w.parent || p.Passage != w.passage || p.Title != w.title || p.Input["word"] != w.input {
 				t.Errorf("page %d is %+v, want %+v", i, p, w)
 			}
 		}
@@ -101,5 +104,36 @@ func TestVisits(t *testing.T) {
 	// Times sort as text: a whole second before a fraction of it.
 	if a, b := timeText(made.Truncate(time.Second)), timeText(made); a >= b {
 		t.Errorf("%q sorts after %q", a, b)
+	}
+}
+
+// TestSQLiteStoreAddsColumns checks that a database made before pages had
+// summaries and marks gets them, empty.
+func TestSQLiteStoreAddsColumns(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "whymark.db")
+	db, err := sql.Open("sqlite", "file:"+path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`CREATE TABLE pages (id TEXT PRIMARY KEY, document TEXT NOT NULL,
+		parent TEXT NOT NULL DEFAULT '', passage TEXT NOT NULL DEFAULT '', title TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL, last_visited_at TEXT NOT NULL, location TEXT NOT NULL,
+		state TEXT, notes TEXT, input TEXT, output TEXT NOT NULL DEFAULT '');
+		INSERT INTO pages (id, document, created_at, last_visited_at, location)
+		VALUES ('old', 'file:///d.md', '2026-10-01T00:00:00.000000000Z', '2026-10-01T00:00:00.000000000Z', 'file:///d.md')`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	store, err := OpenSQLiteStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	pages, err := store.Pages("file:///d.md")
+	if err != nil || len(pages) != 1 || pages[0].Summary != "" || pages[0].Mark != "" {
+		t.Fatalf("the old page is listed as %+v, %v", pages, err)
+	}
+	if err := store.SavePage("new", SavedPage{Document: "file:///d.md", Location: "file:///d.md", Summary: "s", Mark: "red"}); err != nil {
+		t.Fatal(err)
 	}
 }

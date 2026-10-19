@@ -42,6 +42,8 @@ func OpenSQLiteStore(path string) (*SQLiteStore, error) {
 			parent   TEXT NOT NULL DEFAULT '',
 			passage  TEXT NOT NULL DEFAULT '',
 			title    TEXT NOT NULL DEFAULT '',
+			summary  TEXT NOT NULL DEFAULT '',
+			mark     TEXT NOT NULL DEFAULT '',
 			-- Times are ISO 8601, in UTC, always with nine digits of
 			-- fraction, so that they sort as text (see timeText).
 			created_at      TEXT NOT NULL,
@@ -59,7 +61,38 @@ func OpenSQLiteStore(path string) (*SQLiteStore, error) {
 		db.Close()
 		return nil, fmt.Errorf("making %s: %w", path, err)
 	}
+	if err := addColumns(db, "summary", "mark"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("updating %s: %w", path, err)
+	}
 	return &SQLiteStore{db: db}, nil
+}
+
+// addColumns adds the text columns named to the pages table of a database
+// made before they were, as empty.
+func addColumns(db *sql.DB, names ...string) error {
+	rows, err := db.Query(`SELECT name FROM pragma_table_info('pages')`)
+	if err != nil {
+		return err
+	}
+	has := map[string]bool{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			rows.Close()
+			return err
+		}
+		has[name] = true
+	}
+	rows.Close()
+	for _, name := range names {
+		if !has[name] {
+			if _, err := db.Exec(`ALTER TABLE pages ADD COLUMN ` + name + ` TEXT NOT NULL DEFAULT ''`); err != nil {
+				return err
+			}
+		}
+	}
+	return rows.Err()
 }
 
 // Close closes the database.
@@ -82,14 +115,15 @@ func (s *SQLiteStore) SavePage(id string, p SavedPage) error {
 	// ones.
 	created := timeText(p.Time)
 	_, err = s.db.Exec(`INSERT INTO pages
-		(id, document, parent, passage, title, created_at, last_visited_at, location, state, notes, input, output)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		(id, document, parent, passage, title, summary, mark, created_at, last_visited_at, location, state, notes, input, output)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (id) DO UPDATE SET
 			document = excluded.document, parent = excluded.parent, passage = excluded.passage,
-			title = excluded.title, created_at = excluded.created_at, location = excluded.location,
+			title = excluded.title, summary = excluded.summary, mark = excluded.mark,
+			created_at = excluded.created_at, location = excluded.location,
 			state = excluded.state, notes = excluded.notes, input = excluded.input, output = excluded.output,
 			last_visited_at = max(last_visited_at, excluded.last_visited_at)`,
-		id, p.Document, p.Parent, p.Passage, p.Title, created, created, p.Location,
+		id, p.Document, p.Parent, p.Passage, p.Title, p.Summary, p.Mark, created, created, p.Location,
 		string(state), string(notes), string(input), p.Output)
 	return err
 }
@@ -113,9 +147,9 @@ func (s *SQLiteStore) LoadPage(id string) (SavedPage, bool, error) {
 	var p SavedPage
 	var created string
 	var state, notes, input sql.NullString
-	err := s.db.QueryRow(`SELECT document, parent, passage, title, created_at, location, state, notes, input, output
+	err := s.db.QueryRow(`SELECT document, parent, passage, title, summary, mark, created_at, location, state, notes, input, output
 		FROM pages WHERE id = ?`, id).
-		Scan(&p.Document, &p.Parent, &p.Passage, &p.Title, &created, &p.Location, &state, &notes, &input, &p.Output)
+		Scan(&p.Document, &p.Parent, &p.Passage, &p.Title, &p.Summary, &p.Mark, &created, &p.Location, &state, &notes, &input, &p.Output)
 	if errors.Is(err, sql.ErrNoRows) {
 		return p, false, nil
 	}
@@ -144,7 +178,7 @@ func (s *SQLiteStore) LoadPage(id string) (SavedPage, bool, error) {
 
 // Pages lists the pages of document, by when they were made.
 func (s *SQLiteStore) Pages(document whymark.Document) ([]whymark.PageInfo, error) {
-	rows, err := s.db.Query(`SELECT id, parent, passage, title, created_at, last_visited_at FROM pages
+	rows, err := s.db.Query(`SELECT id, parent, passage, title, summary, mark, created_at, last_visited_at, input FROM pages
 		WHERE document = ? ORDER BY created_at, id`, string(document))
 	if err != nil {
 		return nil, err
@@ -154,8 +188,14 @@ func (s *SQLiteStore) Pages(document whymark.Document) ([]whymark.PageInfo, erro
 	for rows.Next() {
 		var p whymark.PageInfo
 		var created, visited string
-		if err := rows.Scan(&p.ID, &p.Parent, &p.Passage, &p.Title, &created, &visited); err != nil {
+		var input sql.NullString
+		if err := rows.Scan(&p.ID, &p.Parent, &p.Passage, &p.Title, &p.Summary, &p.Mark, &created, &visited, &input); err != nil {
 			return nil, err
+		}
+		if input.Valid {
+			if err := json.Unmarshal([]byte(input.String), &p.Input); err != nil {
+				return nil, fmt.Errorf("page %s: %w", p.ID, err)
+			}
 		}
 		if p.Time, err = parseTimeText(created); err != nil {
 			return nil, err

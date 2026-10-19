@@ -3,6 +3,8 @@ package browser
 import (
 	"bytes"
 	"image"
+	"image/color"
+	"image/draw"
 	"image/png"
 )
 
@@ -24,16 +26,17 @@ func decodeIcon(name string) image.Image {
 	return img
 }
 
-// BackIcon/ForwardIcon/ReloadIcon/TOCIcon/ActionsIcon are the toolbar
-// buttons' icons - light, mostly-white silhouettes on a transparent
-// background, so a backend can tint them to match a button's current
-// state. ActionsIcon, a vertical ellipsis, reads as "more things to do":
+// BackIcon/ForwardIcon/ReloadIcon/TOCIcon/TreeIcon/ActionsIcon are the
+// toolbar buttons' icons - light, mostly-white silhouettes on a
+// transparent background, so a backend can tint them to match a button's
+// current state. ActionsIcon, a vertical ellipsis, reads as "more things to do":
 // it opens the actions page, where zoom and the theme are too.
 var (
 	BackIcon    = decodeIcon("arrow_back.png")
 	ForwardIcon = decodeIcon("arrow_forward.png")
 	ReloadIcon  = decodeIcon("refresh.png")
 	TOCIcon     = decodeIcon("toc.png")
+	TreeIcon    = decodeIcon("graph.png")
 	ActionsIcon = decodeIcon("more_vert.png")
 )
 
@@ -44,3 +47,30 @@ var (
 	MicIcon  = decodeIcon("mic.png")
 	SendIcon = decodeIcon("send.png")
 )
+
+// mapIcon is the icon in the tree of pages' corner that expands its map,
+// when the map itself doesn't show there (see treeMapGeometry).
+var mapIcon = decodeIcon("map.png")
+
+// tinted keeps the icons tinted by tint, by icon and color.
+var tinted = map[struct {
+	icon image.Image
+	clr  color.RGBA
+}]image.Image{}
+
+// tint returns icon in clr, keeping its shape: always the same image for
+// the same icon and color, as a Canvas expects of images it caches.
+func tint(icon image.Image, clr color.Color) image.Image {
+	key := struct {
+		icon image.Image
+		clr  color.RGBA
+	}{icon, color.RGBAModel.Convert(clr).(color.RGBA)}
+	if img, ok := tinted[key]; ok {
+		return img
+	}
+	b := icon.Bounds()
+	img := image.NewRGBA(b)
+	draw.DrawMask(img, b, image.NewUniform(clr), image.Point{}, icon, b.Min, draw.Src)
+	tinted[key] = img
+	return img
+}

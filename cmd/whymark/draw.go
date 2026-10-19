@@ -58,6 +58,7 @@ func (g *game) drawToolbar(dst *ebiten.Image, cv canvas.Canvas) {
 	drawButton(dst, cv, forwardIcon, g.forwardButton, g.app.CanGoForward(), g.forwardState)
 	drawButton(dst, cv, reloadIcon, g.reloadButton, g.app.CanReload(), g.reloadState)
 	drawButton(dst, cv, tocIcon, g.tocButton, g.app.CanShowTOC(), g.tocState)
+	drawButton(dst, cv, treeIcon, g.treeButton, g.app.CanShowTree(), g.treeState)
 	drawButton(dst, cv, actionsIcon, g.actionsButton, true, g.actionsState)
 
 	face, err := g.toolbarFaceSelector.SelectFace(fonts.TextStyle{Size: 14}, g.deviceScale*72)
@@ -68,7 +69,7 @@ func (g *game) drawToolbar(dst *ebiten.Image, cv canvas.Canvas) {
 	if hoverDest := g.app.HoverDest(); hoverDest != "" {
 		text, textColor = hoverDest, g.panel.View().HighlightColor()
 	}
-	x := g.tocButton.Max.X + int(16*g.deviceScale)
+	x := g.treeButton.Max.X + int(16*g.deviceScale)
 	maxWidth := g.actionsButton.Min.X - int(16*g.deviceScale) - x
 	text = truncateMiddle(face, text, maxWidth)
 	cv.DrawText(text, face, x, baselineIn(face, image.Rect(x, 0, g.width, g.toolbarHeight)), textColor)

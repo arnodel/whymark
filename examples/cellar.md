@@ -29,11 +29,20 @@ You're in a hall. `= turn.state.lamp and "Your lamp glows." or "Stairs go down i
 
 ```lua
 turn.state.lamp = true
+turn.write_headers{summary = "Took the lamp"}
 ```
 
 You take the lamp from its hook. [Back to the hall](#hall)
 
 # Cellar
+
+```lua
+if turn.state.lamp then
+  turn.write_headers{summary = "Found the port", mark = "green"}
+else
+  turn.write_headers{summary = "Stumbled in the dark", mark = "red"}
+end
+```
 
 `if turn.state.lamp then`
 Your lamp lights up a dusty bottle of 1887 port. **You win!** [Play again](cellar.md)

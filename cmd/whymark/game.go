@@ -70,11 +70,11 @@ type game struct {
 	// panel.Bounds() rather than this field directly). The actions
 	// button sits on the toolbar's right edge, apart from
 	// back/forward/reload on the left - it's not navigation.
-	toolbarHeight                                      int
-	backButton, forwardButton, reloadButton, tocButton image.Rectangle
-	backState, forwardState, reloadState, tocState     buttonState
-	actionsButton                                      image.Rectangle
-	actionsState                                       buttonState
+	toolbarHeight                                                  int
+	backButton, forwardButton, reloadButton, tocButton, treeButton image.Rectangle
+	backState, forwardState, reloadState, tocState, treeState      buttonState
+	actionsButton                                                  image.Rectangle
+	actionsState                                                   buttonState
 }
 
 // buttonState is a toolbar button's per-frame input state, driving its

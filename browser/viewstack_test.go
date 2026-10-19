@@ -19,7 +19,8 @@ import (
 )
 
 // recorder is a canvas.Canvas that records what's drawn on it, instead
-// of drawing. A canvas from Clip records into the one it was clipped from.
+// of drawing. A canvas from Clip or Transform records into the one it came
+// from, in its own coordinates.
 type recorder struct {
 	Area  image.Rectangle
 	Texts []recordedText
@@ -57,7 +58,7 @@ func (c *recorder) Clip(r image.Rectangle) canvas.Canvas {
 	return &recorder{Area: r.Intersect(c.Area), root: c.out()}
 }
 func (c *recorder) Transform(t canvas.Transform) canvas.Canvas {
-	panic("not used by these tests")
+	return &recorder{Area: t.Invert().ApplyRect(c.Area), root: c.out()}
 }
 
 // separatorColor is the stacks' separator color in these tests, unlike

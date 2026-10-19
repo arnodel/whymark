@@ -38,8 +38,10 @@ type SavedPage struct {
 	Parent   string            `json:"parent,omitempty"`
 	Input    map[string]string `json:"input,omitempty"`
 	Time     time.Time         `json:"time"`
-	// Title is the page's title, from its header.
-	Title string `json:"title,omitempty"`
+	// Title, Summary and Mark are those of its header.
+	Title   string `json:"title,omitempty"`
+	Summary string `json:"summary,omitempty"`
+	Mark    string `json:"mark,omitempty"`
 	// Output is the page as its turn wrote it (see Engine.Saved).
 	Output string `json:"output,omitempty"`
 }
@@ -58,17 +60,14 @@ type PageVisitor interface {
 	Visit(id string, t time.Time) error
 }
 
-// titleOf returns the title in the header of output, a page as its turn
-// wrote it, or "".
-func titleOf(output string) string {
+// headerOf returns the header of output, a page as its turn wrote it, or
+// none.
+func headerOf(output string) whymark.Header {
 	if output == "" {
-		return ""
+		return whymark.Header{}
 	}
-	h, err := whymark.ReadHeader(bufio.NewReader(strings.NewReader(output)))
-	if err != nil {
-		return ""
-	}
-	return h.Title
+	h, _ := whymark.ReadHeader(bufio.NewReader(strings.NewReader(output)))
+	return h
 }
 
 // FileStore is a Store keeping each page in a file of its own, named by
@@ -127,6 +126,7 @@ func (s FileStore) LoadPage(id string) (SavedPage, bool, error) {
 
 // saved returns what's kept of the page snap.
 func (snap *snapshot) saved() SavedPage {
+	h := headerOf(snap.output.String())
 	return SavedPage{
 		Document: snap.document,
 		Passage:  snap.passage,
@@ -136,7 +136,9 @@ func (snap *snapshot) saved() SavedPage {
 		Parent:   snap.parent,
 		Input:    snap.request.Input,
 		Time:     snap.time,
-		Title:    titleOf(snap.output.String()),
+		Title:    h.Title,
+		Summary:  h.Summary,
+		Mark:     h.Mark,
 		Output:   snap.output.String(),
 	}
 }
