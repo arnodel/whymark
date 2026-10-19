@@ -210,12 +210,12 @@ func (e *Engine) Turn(ctx context.Context, req whymark.Request) (io.ReadCloser, 
 		}
 		if err == nil || ctx.Err() != nil {
 			if err == nil && !p.sent {
-				p.send(snap.passage, "")
+				p.send(snap.passage, headerFields{})
 			}
 			return
 		}
 		if !p.sent {
-			p.send(passage, "")
+			p.send(passage, headerFields{})
 		}
 		fmt.Fprintf(out, "\n\n---\n\n**The page stopped:**\n\n```text\n%s\n```\n", strings.TrimPrefix(err.Error(), "error: "))
 	}()
@@ -421,7 +421,11 @@ func (e *Engine) Pages(document whymark.Document) ([]whymark.PageInfo, error) {
 			continue // its turn is still setting it
 		}
 		if snap.document == string(document) && !seen[id] {
-			pages = append(pages, whymark.PageInfo{ID: id, Parent: snap.parent, Passage: snap.passage, Time: snap.time, Input: snap.request.Input})
+			h := headerOf(snap.output.String())
+			pages = append(pages, whymark.PageInfo{
+				ID: id, Parent: snap.parent, Passage: snap.passage, Title: h.Title, Time: snap.time,
+				Input: snap.request.Input, Summary: h.Summary, Mark: h.Mark,
+			})
 		}
 	}
 	e.mu.Unlock()

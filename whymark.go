@@ -59,4 +59,6 @@ type PageInfo struct {
 	// Input is the named fields typed in for the request that made it, if
 	// any (see Request.Input).
 	Input map[string]string
+	// Summary and Mark are those of its header (see Header).
+	Summary, Mark string
 }

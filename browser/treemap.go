@@ -474,8 +474,8 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 			fill(in, image.Rect(q.X-w/2, mid, q.X-w/2+w, q.Y), accent)
 		}
 	}
-	// The dots: the page the view was opened from in the accent color,
-	// and the selected page ringed.
+	// The dots: in their marks' colors, the page the view was opened from
+	// in the accent color, and the selected page ringed.
 	hovered := m.dotAt(a.pointer)
 	if !a.hasPointer {
 		hovered = ""
@@ -485,6 +485,9 @@ func (a *App) drawTreeMap(dst canvas.Canvas, wall time.Time, now time.Duration) 
 		clr := theme.ThematicBreakColor
 		if heat {
 			clr = heatColor(t.mapHeat[id], a.darkTheme)
+		}
+		if mark, ok := markColor(t.pages[id].Mark, a.darkTheme); ok {
+			clr = mark
 		}
 		if id == t.start && a.experiment("tree-path") {
 			clr = accent

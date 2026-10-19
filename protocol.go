@@ -37,6 +37,13 @@ type Header struct {
 	PageID string
 	// Title is the page's title.
 	Title string
+	// Summary is what tells the page apart from others of the document,
+	// such as what was done to make it, in a few words: for listing it,
+	// as in a view of the tree of pages. It's "" if the page says none.
+	Summary string
+	// Mark is one of Marks, for a browser to color the page with where it
+	// lists it, or "" for none.
+	Mark string
 	// Journal is a hint that the document reads best as a trail.
 	Journal bool
 	// Resume is a hint that opening the document again should carry on
@@ -49,13 +56,22 @@ type header struct {
 	Location string `yaml:"location"`
 	PageID   string `yaml:"page-id"`
 	Title    string `yaml:"title,omitempty"`
+	Summary  string `yaml:"summary,omitempty"`
+	Mark     string `yaml:"mark,omitempty"`
 	Journal  bool   `yaml:"journal,omitempty"`
 	Resume   bool   `yaml:"resume,omitempty"`
 }
 
+// Marks are the marks a page can have (see Header.Mark): colors, by name,
+// which a browser shows as it suits its theme.
+var Marks = []string{"red", "orange", "yellow", "green", "blue", "purple"}
+
 // WriteHeader writes h to w as a page's front matter.
 func WriteHeader(w io.Writer, h Header) error {
-	data, err := yaml.Marshal(header{Location: h.Location.String(), PageID: h.PageID, Title: h.Title, Journal: h.Journal, Resume: h.Resume})
+	data, err := yaml.Marshal(header{
+		Location: h.Location.String(), PageID: h.PageID, Title: h.Title,
+		Summary: h.Summary, Mark: h.Mark, Journal: h.Journal, Resume: h.Resume,
+	})
 	if err != nil {
 		return err
 	}
@@ -89,7 +105,10 @@ func ReadHeader(r *bufio.Reader) (Header, error) {
 	if err != nil || raw.Location == "" {
 		return h, fmt.Errorf("a page's header: location %q", raw.Location)
 	}
-	return Header{Location: location, PageID: raw.PageID, Title: raw.Title, Journal: raw.Journal, Resume: raw.Resume}, nil
+	return Header{
+		Location: location, PageID: raw.PageID, Title: raw.Title,
+		Summary: raw.Summary, Mark: raw.Mark, Journal: raw.Journal, Resume: raw.Resume,
+	}, nil
 }
 
 // Follow returns the request for a link, as written, on the page with

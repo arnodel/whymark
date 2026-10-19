@@ -3,6 +3,7 @@
 package engine
 
 import (
+	"database/sql"
 	"path/filepath"
 	"testing"
 	"time"
@@ -103,5 +104,36 @@ func TestVisits(t *testing.T) {
 	// Times sort as text: a whole second before a fraction of it.
 	if a, b := timeText(made.Truncate(time.Second)), timeText(made); a >= b {
 		t.Errorf("%q sorts after %q", a, b)
+	}
+}
+
+// TestSQLiteStoreAddsColumns checks that a database made before pages had
+// summaries and marks gets them, empty.
+func TestSQLiteStoreAddsColumns(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "whymark.db")
+	db, err := sql.Open("sqlite", "file:"+path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`CREATE TABLE pages (id TEXT PRIMARY KEY, document TEXT NOT NULL,
+		parent TEXT NOT NULL DEFAULT '', passage TEXT NOT NULL DEFAULT '', title TEXT NOT NULL DEFAULT '',
+		created_at TEXT NOT NULL, last_visited_at TEXT NOT NULL, location TEXT NOT NULL,
+		state TEXT, notes TEXT, input TEXT, output TEXT NOT NULL DEFAULT '');
+		INSERT INTO pages (id, document, created_at, last_visited_at, location)
+		VALUES ('old', 'file:///d.md', '2026-10-01T00:00:00.000000000Z', '2026-10-01T00:00:00.000000000Z', 'file:///d.md')`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	store, err := OpenSQLiteStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	pages, err := store.Pages("file:///d.md")
+	if err != nil || len(pages) != 1 || pages[0].Summary != "" || pages[0].Mark != "" {
+		t.Fatalf("the old page is listed as %+v, %v", pages, err)
+	}
+	if err := store.SavePage("new", SavedPage{Document: "file:///d.md", Location: "file:///d.md", Summary: "s", Mark: "red"}); err != nil {
+		t.Fatal(err)
 	}
 }

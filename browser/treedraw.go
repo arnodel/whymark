@@ -423,12 +423,18 @@ func (a *App) drawTreeLabel(dst canvas.Canvas, id string, r image.Rectangle, now
 	fill(dst, bar, theme.BackgroundColor)
 	fill(dst, image.Rect(bar.Min.X, bar.Min.Y, bar.Max.X, bar.Min.Y+a.thin()), theme.ThematicBreakColor)
 	info := a.tree.pages[id]
+	x := bar.Min.X + pad
+	if clr, ok := markColor(info.Mark, a.darkTheme); ok {
+		w := 4 * a.thin()
+		fill(dst, image.Rect(bar.Min.X, bar.Min.Y, bar.Min.X+w, bar.Max.Y), clr)
+		x += w
+	}
 	age := ageOf(info.Time, now)
 	ageX := bar.Max.X - pad - font.MeasureString(face, age).Ceil()
 	baseline := baselineIn(face, bar)
 	dst.DrawText(age, face, ageX, baseline, theme.ThematicBreakColor)
-	label := truncateEnd(face, treeLabel(info), ageX-pad-(bar.Min.X+pad))
-	dst.DrawText(label, face, bar.Min.X+pad, baseline, theme.TextColor)
+	label := truncateEnd(face, treeLabel(info), ageX-pad-x)
+	dst.DrawText(label, face, x, baseline, theme.TextColor)
 }
 
 // treeLabelFace returns the face of the tree view's labels, the height of
@@ -451,9 +457,12 @@ func (a *App) treeTheme() *simpletheme.Theme {
 	return simpletheme.Light()
 }
 
-// treeLabel returns what tells page p apart in the tree of pages: what was
-// typed for it, or else its title.
+// treeLabel returns what tells page p apart in the tree of pages: its
+// summary, or else what was typed for it, or else its title.
 func treeLabel(p whymark.PageInfo) string {
+	if p.Summary != "" {
+		return p.Summary
+	}
 	if len(p.Input) > 0 {
 		names := slices.Sorted(maps.Keys(p.Input))
 		var parts []string
@@ -470,6 +479,29 @@ func treeLabel(p whymark.PageInfo) string {
 		return p.Title
 	}
 	return "Untitled page"
+}
+
+// The marks' colors (see whymark.Marks), on a dark background and on a
+// light one.
+var (
+	darkMarks = map[string]color.RGBA{
+		"red": {0xE5, 0x53, 0x4B, 0xFF}, "orange": {0xE8, 0x83, 0x3A, 0xFF}, "yellow": {0xE3, 0xC3, 0x4A, 0xFF},
+		"green": {0x57, 0xAB, 0x5A, 0xFF}, "blue": {0x53, 0x9B, 0xF5, 0xFF}, "purple": {0xB0, 0x83, 0xF0, 0xFF},
+	}
+	lightMarks = map[string]color.RGBA{
+		"red": {0xCF, 0x22, 0x2E, 0xFF}, "orange": {0xBC, 0x4C, 0x00, 0xFF}, "yellow": {0x9A, 0x67, 0x00, 0xFF},
+		"green": {0x1A, 0x7F, 0x37, 0xFF}, "blue": {0x09, 0x69, 0xDA, 0xFF}, "purple": {0x82, 0x50, 0xDF, 0xFF},
+	}
+)
+
+// markColor returns the color of mark, if it's one of whymark.Marks.
+func markColor(mark string, dark bool) (color.Color, bool) {
+	marks := lightMarks
+	if dark {
+		marks = darkMarks
+	}
+	clr, ok := marks[mark]
+	return clr, ok
 }
 
 // ageOf returns how long before now t was, as a person would say it, or ""

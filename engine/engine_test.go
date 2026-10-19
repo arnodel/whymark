@@ -758,3 +758,31 @@ func TestPrevious(t *testing.T) {
 	branch := follow(t, e, first, "?add=3")
 	wants(t, "a branch from the first page", branch, []string{"page 1: play, score 0", "Score 3."}, []string{"page 2"})
 }
+
+// TestSummaryAndMark checks the page's summary and mark, which its turn
+// sets with turn.write_headers, and kept with it.
+func TestSummaryAndMark(t *testing.T) {
+	doc := "---\nwhymark:\n  version: 1\n---\n# Hall\n\n[Win](#win) · [Lose](#lose)\n\n" +
+		"# Win\n\n```lua\nturn.write_headers{summary = \"Won\", mark = \"green\"}\n```\n\nYou win.\n\n" +
+		"# Lose\n\n```lua\nturn.write_headers{mark = \"plaid\"}\n```\n\nYou lose.\n"
+	store := newSQLiteStore(t)
+	e, file := testEngine(t, map[string]string{"game.md": doc}, WithStore(store))
+	hall := take(t, e, whymark.Request{Location: file("game.md")})
+	win := follow(t, e, hall, "#win")
+	if win.Title != "Win" || win.Summary != "Won" || win.Mark != "green" {
+		t.Errorf("the page is titled %q, summarised %q, marked %q", win.Title, win.Summary, win.Mark)
+	}
+	lose := follow(t, e, hall, "#lose")
+	wants(t, "an unknown mark", lose, []string{"no mark \"plaid\""}, []string{"You lose."})
+	for _, engine := range []*Engine{e, newEngineOn(t, store)} {
+		pages, err := engine.Pages(whymark.DocumentOf(file("game.md")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, p := range pages {
+			if p.ID == win.PageID && (p.Summary != "Won" || p.Mark != "green") {
+				t.Errorf("the page is listed summarised %q, marked %q", p.Summary, p.Mark)
+			}
+		}
+	}
+}

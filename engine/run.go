@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"time"
 
@@ -70,9 +71,15 @@ type page struct {
 	program *compile.Program
 }
 
-// send writes the header, for the turn's passage, with title if it's not
-// "", else the default.
-func (p *page) send(passage, title string) error {
+// headerFields are the fields of a page's header that its turn can set
+// (see turn.write_headers).
+type headerFields struct {
+	title, summary, mark string
+}
+
+// send writes the header, for the turn's passage, with fields, and the
+// default title if fields has none.
+func (p *page) send(passage string, fields headerFields) error {
 	if p.sent {
 		return errors.New("turn.write_headers called twice, or after the page started")
 	}
@@ -82,13 +89,14 @@ func (p *page) send(passage, title string) error {
 		location.Fragment, location.RawFragment = passage, ""
 		p.header.Location = &location
 	}
+	title := fields.title
 	if title == "" {
 		title = p.program.Title
 		if ps, ok := p.program.Passage(passage); ok {
 			title = ps.Title
 		}
 	}
-	p.header.Title = title
+	p.header.Title, p.header.Summary, p.header.Mark = title, fields.summary, fields.mark
 	return whymark.WriteHeader(p.w, p.header)
 }
 
@@ -104,7 +112,7 @@ func (p *page) write(passage, s string) error {
 		if !p.auto {
 			return errors.New("call turn.write_headers before turn.write")
 		}
-		if err := p.send(passage, ""); err != nil {
+		if err := p.send(passage, headerFields{}); err != nil {
 			return err
 		}
 	}
@@ -202,20 +210,31 @@ func run(prog *compile.Program, p *page, in turnInput) (out turnOutput, err erro
 			return c.Next(), nil
 		}, 0, true)
 		writeHeaders := goFunction(r, turn, "write_headers", func(t *rt.Thread, c *rt.GoCont) (rt.Cont, error) {
-			title := ""
+			var header headerFields
 			if c.NArgs() > 0 {
 				fields, err := c.TableArg(0)
 				if err != nil {
 					return nil, err
 				}
 				for k, v, _ := fields.Next(rt.NilValue); !k.IsNil(); k, v, _ = fields.Next(k) {
-					switch name, _ := k.TryString(); name {
-					case "title":
+					name, _ := k.TryString()
+					switch name {
+					case "title", "summary", "mark":
 						s, ok := v.ToString()
 						if !ok {
-							return nil, fmt.Errorf("turn.write_headers: title can't be a %s", v.TypeName())
+							return nil, fmt.Errorf("turn.write_headers: %s can't be a %s", name, v.TypeName())
 						}
-						title = s
+						switch name {
+						case "title":
+							header.title = s
+						case "summary":
+							header.summary = s
+						default:
+							if !slices.Contains(whymark.Marks, s) {
+								return nil, fmt.Errorf("turn.write_headers: no mark %q: the marks are %s", s, strings.Join(whymark.Marks, ", "))
+							}
+							header.mark = s
+						}
 					case "location", "page-id":
 						return nil, fmt.Errorf("turn.write_headers: %s is the engine's", name)
 					default:
@@ -223,7 +242,7 @@ func run(prog *compile.Program, p *page, in turnInput) (out turnOutput, err erro
 					}
 				}
 			}
-			if err := p.send(turnPassage(), title); err != nil {
+			if err := p.send(turnPassage(), header); err != nil {
 				return nil, err
 			}
 			return c.Next(), nil

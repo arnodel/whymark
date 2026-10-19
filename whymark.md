@@ -123,7 +123,7 @@ Lua code sees the current turn as `turn`, passed to it, never global:
 | `turn.notes` | what this page records of itself, an empty table at the start of every turn; plain data only. Unlike `turn.state`, it isn't carried to the next page, but later pages see it (see below) |
 | `turn.previous` | the page the request came from, or `nil` on a turn starting the document. It has the `state` it left, its `notes`, its `passage`, its `time`, its request's `query` and `input`, and its own `previous`, back to the start. Changing them changes nothing |
 | `turn.write(...)` | writes its arguments to the page |
-| `turn.write_headers{title = …}` | writes the page's header (see below) |
+| `turn.write_headers{title = …, summary = …, mark = …}` | writes the page's header (see below) |
 | `turn.link(text, query)` | a Markdown link to `?query`, from a table, escaped |
 | `turn.go(id)` | stops this passage and shows passage `id` instead; the page's location follows |
 | `turn.show(id)` | runs passage `id`, without its heading, where it's called, then carries on |
@@ -146,9 +146,18 @@ with passages gets a `page(turn)` showing the turn's passage, and can't define i
 a document without passages must define it: its body is then usually one `lua` block.
 
 **The header** is written once, before anything else: `turn.write_headers{…}` writes it
-with the fields given. Its only field, so far, is `title`, which defaults to the passage's
-heading (shown or quiet), or for a document without passages, to the front matter's
-`title`. In a document without passages, `turn.write` before `turn.write_headers` is an
+with the fields given, all optional:
+
+- `title`, which defaults to the passage's heading (shown or quiet), or for a document
+  without passages, to the front matter's `title`;
+- `summary`: what tells the page apart from the document's others, in a few words, such as
+  what was done to make it (`"Took the lamp"`), for a user agent to list it by, as in a view
+  of the tree of pages;
+- `mark`: one of `red`, `orange`, `yellow`, `green`, `blue` and `purple`, for a user agent to
+  color the page with where it lists it, such as a game's clues in yellow and its dead ends
+  in red.
+
+In a document without passages, `turn.write` before `turn.write_headers` is an
 error. In a passage, the first output writes the header itself, with the defaults, unless
 the passage wrote it first; whitespace written before then doesn't count, so a `lua` block
 after a passage's blank lines can still write the header, or go elsewhere. `turn.go` after
@@ -300,6 +309,7 @@ You're in a hall. It's dark below.
   `from-page-id`, with requests from the page, and never interprets it. What's behind it is
   the engine's business.
 - `title`: the page's title.
+- `summary`, `mark`: the page's summary and mark, if its turn gave them.
 - `journal`, `resume`: the document's hints, if it gives them.
 
 ### Input fields

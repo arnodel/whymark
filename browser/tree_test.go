@@ -259,6 +259,7 @@ func TestTreeLabel(t *testing.T) {
 		{whymark.PageInfo{Title: "To do", Input: map[string]string{"task": " buy\n milk "}}, "“buy milk”"},
 		{whymark.PageInfo{Input: map[string]string{"b": "2", "a": "1"}}, "“a: 1 · b: 2”"},
 		{whymark.PageInfo{}, "Untitled page"},
+		{whymark.PageInfo{Title: "To do", Summary: "Added milk", Input: map[string]string{"say": "add milk"}}, "Added milk"},
 	} {
 		if got := treeLabel(c.page); got != c.want {
 			t.Errorf("treeLabel(%+v) = %q, want %q", c.page, got, c.want)
@@ -768,5 +769,18 @@ func TestShortAge(t *testing.T) {
 		if got := shortAge(now.Add(-c.ago), now); got != c.want {
 			t.Errorf("shortAge(%v ago) = %q, want %q", c.ago, got, c.want)
 		}
+	}
+}
+
+func TestMarkColor(t *testing.T) {
+	for _, mark := range whymark.Marks {
+		for _, dark := range []bool{true, false} {
+			if _, ok := markColor(mark, dark); !ok {
+				t.Errorf("mark %q (dark: %v) has no color", mark, dark)
+			}
+		}
+	}
+	if _, ok := markColor("", true); ok {
+		t.Error("no mark has a color")
 	}
 }
